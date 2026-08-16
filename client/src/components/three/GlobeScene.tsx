@@ -32,7 +32,7 @@ const calculateSunPosition = (date: Date = new Date(), radius: number = 300): TH
     return latLngToVector3(sunLat, sunLng, radius);
 };
 
-/* ─── Country Borders Line Layer ──────────────────────────── */
+/* ─── Country Borders Line Layer (Balanced In-Between) ───── */
 
 const WorldCountryBorders = () => {
     const [bordersGeo, setBordersGeo] = useState<THREE.BufferGeometry | null>(null);
@@ -52,8 +52,8 @@ const WorldCountryBorders = () => {
                         const p1 = ring[i];
                         const p2 = ring[i + 1];
 
-                        const v1 = latLngToVector3(p1[1], p1[0], 100.18);
-                        const v2 = latLngToVector3(p2[1], p2[0], 100.18);
+                        const v1 = latLngToVector3(p1[1], p1[0], 100.2);
+                        const v2 = latLngToVector3(p2[1], p2[0], 100.2);
 
                         points.push(v1.x, v1.y, v1.z);
                         points.push(v2.x, v2.y, v2.z);
@@ -94,11 +94,12 @@ const WorldCountryBorders = () => {
     if (!bordersGeo) return null;
 
     return (
+        /* Balanced medium steel-blue outlines - perfectly readable without being heavy */
         <lineSegments geometry={bordersGeo}>
             <lineBasicMaterial
-                color="#38bdf8"
+                color="#0284c7"
                 transparent
-                opacity={0.4}
+                opacity={0.6}
                 depthWrite={false}
             />
         </lineSegments>
@@ -203,7 +204,7 @@ const RealTimeEarthSphere = () => {
                 <sphereGeometry args={[100, 64, 64]} />
             </mesh>
 
-            {/* Country Borders Line Overlay */}
+            {/* Country Borders Line Overlay (Balanced In-Between) */}
             <WorldCountryBorders />
 
             {/* Atmosphere Halo */}
