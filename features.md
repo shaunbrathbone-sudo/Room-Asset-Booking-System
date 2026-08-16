@@ -28,4 +28,6 @@ Whenever a new feature is created, add an entry here with a unique sequential ID
 | FEAT-0017 | 2026-08-16 | Space Utilization & Workplace Analytics | Department occupancy ratios, meeting room turnover, fleet car metrics, and ghost booking recovery tracker (/admin/analytics). | Completed |
 | FEAT-0018 | 2026-08-16 | Office Welcome Guide & Induction Portal | Digital guide (/explore/[countrySlug]/[officeSlug]/guide) with arrival instructions, commuting, amenities, and floor guides. | Completed |
 | FEAT-0019 | 2026-08-16 | Office Guide Live CMS & Admin Editor | Full admin CMS (/admin/offices/[slug]/guide) to add, update, and publish induction booklet topics and guidelines. | Completed |
+| FEAT-0020 | 2026-08-16 | Centralized Administration Hub | Unified admin dashboard (/admin) with Domain Whitelisting, User Directory & RBAC, Estate CMS, and System Configs. | Completed |
+| FEAT-0021 | 2026-08-16 | Corporate Domain Whitelist Gate & Microsoft SSO | Domain security gate blocking unknown email domains on registration (/register) and Microsoft 365 Single Sign-On. | Completed |
 <!-- Append new features above this line -->

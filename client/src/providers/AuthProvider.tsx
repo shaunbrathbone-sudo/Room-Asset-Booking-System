@@ -7,6 +7,7 @@ import type { UserPayload, TokenPair, AuthState, LoginCredentials, RegisterData 
 interface AuthContextValue extends AuthState {
     login: (credentials: LoginCredentials) => Promise<void>;
     register: (data: RegisterData) => Promise<void>;
+    loginWithTokens: (tokens: TokenPair, user: UserPayload) => void;
     logout: () => void;
 }
 
@@ -57,6 +58,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         persistAuth(data.user, data.tokens);
     }, [persistAuth]);
 
+    const loginWithTokens = useCallback((tokens: TokenPair, user: UserPayload) => {
+        persistAuth(user, tokens);
+    }, [persistAuth]);
+
     const logout = useCallback(() => {
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_tokens');
@@ -64,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ ...state, login, register, logout }}>
+        <AuthContext.Provider value={{ ...state, login, register, loginWithTokens, logout }}>
             {children}
         </AuthContext.Provider>
     );

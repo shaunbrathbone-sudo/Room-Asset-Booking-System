@@ -3,16 +3,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Globe, Lock, Mail, ArrowRight, ShieldAlert } from 'lucide-react';
+import { Globe, Lock, Mail, User, ShieldAlert, ArrowRight, Building } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 
-const LoginPage = () => {
+const RegisterPage = () => {
     const router = useRouter();
-    const { login, loginWithTokens } = useAuth();
+    const { register, loginWithTokens } = useAuth();
 
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [tenantId, setTenantId] = useState('11111111-1111-1111-1111-111111111111');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -22,10 +25,16 @@ const LoginPage = () => {
         setLoading(true);
 
         try {
-            await login({ email, password });
+            await register({
+                firstName,
+                lastName,
+                email,
+                password,
+                tenantId,
+            });
             router.push('/');
         } catch (err: any) {
-            setError(err.response?.data?.error || 'Invalid credentials.');
+            setError(err.response?.data?.error || 'Registration failed. Please check your details.');
         } finally {
             setLoading(false);
         }
@@ -42,7 +51,12 @@ const LoginPage = () => {
                 return;
             }
 
-            const { data } = await api.post('/auth/sso/microsoft', { email: ssoEmail });
+            const { data } = await api.post('/auth/sso/microsoft', {
+                email: ssoEmail,
+                firstName: firstName || 'Corporate',
+                lastName: lastName || 'User',
+            });
+
             loginWithTokens(data.tokens, data.user);
             router.push('/');
         } catch (err: any) {
@@ -61,10 +75,10 @@ const LoginPage = () => {
                         <Globe className="w-6 h-6 text-white" />
                     </div>
                     <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                        Welcome Back
+                        Create Corporate Account
                     </h1>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        Sign in to reserve desks, rooms, and shared fleet assets.
+                        Register with your authorized company email address.
                     </p>
                 </div>
 
@@ -81,13 +95,13 @@ const LoginPage = () => {
                         <rect x="1" y="1" width="9" height="9" fill="#00a4ef" />
                         <rect x="11" y="1" width="9" height="9" fill="#ffb900" />
                     </svg>
-                    <span>Sign in with Microsoft 365</span>
+                    <span>Single Sign-On with Microsoft 365</span>
                 </button>
 
                 <div className="relative flex items-center justify-center mb-6">
                     <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
                     <span className="bg-white dark:bg-slate-900 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        Or with Email & Password
+                        Or Register with Email
                     </span>
                 </div>
 
@@ -99,8 +113,39 @@ const LoginPage = () => {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">First Name</label>
+                            <div className="relative">
+                                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                                <input
+                                    type="text"
+                                    required
+                                    value={firstName}
+                                    onChange={(e) => setFirstName(e.target.value)}
+                                    placeholder="Jane"
+                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
+                            <input
+                                type="text"
+                                required
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                placeholder="Doe"
+                                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                    </div>
+
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                            Corporate Email Address
+                        </label>
                         <div className="relative">
                             <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                             <input
@@ -112,6 +157,25 @@ const LoginPage = () => {
                                 className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                            Authorized domains: @cloudfy.com, @williamscommerce.com, @brandwidth.com
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Company Tenant</label>
+                        <div className="relative">
+                            <Building className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                            <select
+                                value={tenantId}
+                                onChange={(e) => setTenantId(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="11111111-1111-1111-1111-111111111111">Cloudfy UK Ltd</option>
+                                <option value="22222222-2222-2222-2222-222222222222">Williams Commerce Ltd</option>
+                                <option value="33333333-3333-3333-3333-333333333333">Brandwidth Group</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div>
@@ -121,6 +185,7 @@ const LoginPage = () => {
                             <input
                                 type="password"
                                 required
+                                minLength={6}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
@@ -134,15 +199,15 @@ const LoginPage = () => {
                         disabled={loading}
                         className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-98 text-white font-bold text-xs shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
                     >
-                        {loading ? 'Authenticating...' : 'Sign In'}
+                        {loading ? 'Creating Account...' : 'Complete Registration'}
                         <ArrowRight className="w-4 h-4" />
                     </button>
                 </form>
 
                 <div className="mt-6 text-center text-xs text-slate-500">
-                    New to the company?{' '}
-                    <Link href="/register" className="font-bold text-blue-600 hover:underline">
-                        Create an account
+                    Already have an account?{' '}
+                    <Link href="/login" className="font-bold text-blue-600 hover:underline">
+                        Sign In here
                     </Link>
                 </div>
             </div>
@@ -150,4 +215,4 @@ const LoginPage = () => {
     );
 };
 
-export default LoginPage;
+export default RegisterPage;
