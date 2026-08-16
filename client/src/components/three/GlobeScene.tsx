@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useRef, useMemo, useState, useEffect, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Stars, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTheme } from 'next-themes';
@@ -22,16 +22,14 @@ const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector
 /** Calculate Sun position vector from current UTC time */
 const calculateSunPosition = (date: Date = new Date(), radius: number = 300): THREE.Vector3 => {
     const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-    // At 12:00 UTC, Sun is at 0° longitude (Greenwich / UK meridian)
     const sunLng = -((utcHours - 12) * 15);
-    // Approximate seasonal solar declination (-23.44° to +23.44°)
     const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
     const sunLat = 23.44 * Math.sin(((dayOfYear - 80) / 365) * 2 * Math.PI);
 
     return latLngToVector3(sunLat, sunLng, radius);
 };
 
-/* ─── Custom Real-Time Day/Night Earth Shader Material ───── */
+/* ─── Custom Real-Time Day/Night Earth Shader ────────────── */
 
 const EarthDayNightShader = {
     uniforms: {
@@ -66,31 +64,27 @@ const EarthDayNightShader = {
             vec3 norm = normalize(vNormal);
             vec3 sunNorm = normalize(sunDirection);
             
-            // Calculate sunlight intensity based on angle to sun
             float sunDot = dot(norm, sunNorm);
-            
-            // Smooth daylight transition zone (dawn/dusk terminator)
             float dayFactor = smoothstep(-0.15, 0.25, sunDot);
             
             vec4 dayColor = texture2D(dayTexture, vUv);
             vec4 nightColor = texture2D(nightTexture, vUv);
             
-            // Enhance brightness of daytime oceans and continents
-            dayColor.rgb *= 1.35;
+            // Brighten daylight
+            dayColor.rgb *= 1.4;
             
-            // City lights glow warmly on night side
-            nightColor.rgb *= vec3(1.4, 1.2, 0.9) * 1.8;
+            // Night lights glow warmly
+            nightColor.rgb *= vec3(1.4, 1.2, 0.9) * 2.0;
             
-            // Blend day map and night map
             vec3 blended = mix(nightColor.rgb, dayColor.rgb, dayFactor);
             
-            // Subtle golden sunset glow on the terminator line
+            // Golden sunset line
             float sunsetFactor = smoothstep(-0.1, 0.05, sunDot) * smoothstep(0.2, 0.05, sunDot);
-            vec3 sunsetColor = vec3(1.0, 0.5, 0.1) * sunsetFactor * 0.4;
+            vec3 sunsetColor = vec3(1.0, 0.5, 0.1) * sunsetFactor * 0.45;
             
-            // Atmospheric limb scattering
+            // Atmosphere rim scattering
             float viewDot = 1.0 - max(0.0, dot(normalize(-vWorldPosition), norm));
-            vec3 atmosphereColor = vec3(0.3, 0.6, 1.0) * pow(viewDot, 3.0) * max(0.2, dayFactor);
+            vec3 atmosphereColor = vec3(0.3, 0.6, 1.0) * pow(viewDot, 3.0) * max(0.25, dayFactor);
 
             gl_FragColor = vec4(blended + sunsetColor + atmosphereColor, 1.0);
         }
@@ -112,7 +106,7 @@ const RealTimeEarthSphere = () => {
     const sunPosition = useMemo(() => calculateSunPosition(new Date()), []);
 
     const shaderMaterial = useMemo(() => {
-        const mat = new THREE.ShaderMaterial({
+        return new THREE.ShaderMaterial({
             uniforms: {
                 dayTexture: { value: dayTexture },
                 nightTexture: { value: nightTexture },
@@ -122,7 +116,6 @@ const RealTimeEarthSphere = () => {
             vertexShader: EarthDayNightShader.vertexShader,
             fragmentShader: EarthDayNightShader.fragmentShader,
         });
-        return mat;
     }, [dayTexture, nightTexture, bumpTexture, sunPosition]);
 
     useFrame(() => {
@@ -134,18 +127,18 @@ const RealTimeEarthSphere = () => {
 
     return (
         <group>
-            {/* Core Photorealistic Day/Night Earth */}
+            {/* Photorealistic Day/Night Earth */}
             <mesh ref={meshRef} material={shaderMaterial}>
                 <sphereGeometry args={[100, 64, 64]} />
             </mesh>
 
-            {/* Atmosphere Glow Shell */}
+            {/* Atmosphere Glow */}
             <mesh ref={atmosphereRef} scale={[1.025, 1.025, 1.025]}>
                 <sphereGeometry args={[100, 48, 48]} />
                 <meshBasicMaterial
                     color="#60a5fa"
                     transparent
-                    opacity={0.14}
+                    opacity={0.15}
                     side={THREE.BackSide}
                 />
             </mesh>
@@ -178,7 +171,7 @@ const GlobePin = ({ country, onSelect }: GlobePinProps) => {
 
     return (
         <group position={position}>
-            {/* Pulsing Core Beacon */}
+            {/* Core Beacon Light */}
             <mesh
                 ref={meshRef}
                 onPointerEnter={() => setHovered(true)}
@@ -205,10 +198,10 @@ const GlobePin = ({ country, onSelect }: GlobePinProps) => {
                 />
             </mesh>
 
-            {/* Floating Location Pill Tag */}
+            {/* Floating Location Tag */}
             <Html
                 position={[0, 9, 0]}
-                distanceFactor={160}
+                distanceFactor={150}
                 center
                 style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
             >
@@ -231,6 +224,44 @@ const GlobePin = ({ country, onSelect }: GlobePinProps) => {
     );
 };
 
+/* ─── Focused Camera Controller ──────────────────────────── */
+
+const FocusedCameraRig = ({ countries }: { countries: Country[] }) => {
+    const { camera } = useThree();
+    const controlsRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (countries.length === 1) {
+            // Single country portfolio: Focus camera directly on that country (e.g. UK: lat 52.6, lng -1.1)
+            const targetCountry = countries[0];
+            const targetVec = latLngToVector3(targetCountry.latitude, targetCountry.longitude, 100);
+            
+            // Position camera looking directly straight down at the UK at optimal close distance
+            const camDistance = 165;
+            const camPos = targetVec.clone().normalize().multiplyScalar(camDistance);
+            
+            camera.position.set(camPos.x, camPos.y, camPos.z);
+            camera.lookAt(0, 0, 0);
+            if (controlsRef.current) {
+                controlsRef.current.target.set(0, 0, 0);
+                controlsRef.current.update();
+            }
+        }
+    }, [countries, camera]);
+
+    return (
+        <OrbitControls
+            ref={controlsRef}
+            enableZoom
+            enablePan={false}
+            minDistance={125}
+            maxDistance={380}
+            autoRotate={false}
+            dampingFactor={0.06}
+        />
+    );
+};
+
 /* ─── Main Globe Scene Canvas ────────────────────────────── */
 
 interface GlobeSceneProps {
@@ -245,15 +276,13 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
 
     return (
         <>
-            {/* Real Sun Light matching current solar time */}
+            {/* Real Sun Light */}
             <directionalLight
                 position={[sunPos.x, sunPos.y, sunPos.z]}
-                intensity={3.0}
+                intensity={3.2}
                 color="#fffcf2"
             />
-            {/* Soft Ambient Fill Light */}
             <ambientLight intensity={0.6} />
-            {/* Soft space rim light */}
             <directionalLight position={[-sunPos.x, -sunPos.y, -sunPos.z]} intensity={0.4} color="#60a5fa" />
 
             {isDark && <Stars radius={350} depth={80} count={4000} factor={5} fade speed={0.4} />}
@@ -270,24 +299,16 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 />
             ))}
 
-            <OrbitControls
-                enableZoom
-                enablePan={false}
-                minDistance={140}
-                maxDistance={380}
-                autoRotate={false}
-                dampingFactor={0.06}
-            />
+            <FocusedCameraRig countries={countries} />
         </>
     );
 };
 
 export const GlobeScene = ({ countries, onCountrySelect }: GlobeSceneProps) => {
-    // Initial camera position positioned to look directly at the UK (lat 52.6, lng -1.1) in midday sun
     return (
         <div className="w-full h-full min-h-[650px] relative">
             <Canvas
-                camera={{ position: [0, 45, 230], fov: 45 }}
+                camera={{ position: [0, 100, 165], fov: 45 }}
                 gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping }}
                 style={{ background: 'transparent' }}
             >
