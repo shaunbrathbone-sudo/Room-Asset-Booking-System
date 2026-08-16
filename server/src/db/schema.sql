@@ -233,3 +233,29 @@ CREATE TABLE IF NOT EXISTS bug_subscribers (
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (bug_id, user_id)
 );
+-- Facility Areas for on-site amenities (kitchens, showers, restrooms, lounges)
+CREATE TABLE IF NOT EXISTS facility_areas (
+    id TEXT PRIMARY KEY,
+    floor_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'kitchen',
+    photo_url TEXT NOT NULL,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE CASCADE
+);
+
+-- Interactive Photo Hotspots inside facility areas
+CREATE TABLE IF NOT EXISTS facility_hotspots (
+    id TEXT PRIMARY KEY,
+    facility_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    item_name TEXT,
+    description TEXT,
+    instructions TEXT,
+    pos_x REAL NOT NULL,
+    pos_y REAL NOT NULL,
+    icon TEXT DEFAULT 'Coffee',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (facility_id) REFERENCES facility_areas(id) ON DELETE CASCADE
+);

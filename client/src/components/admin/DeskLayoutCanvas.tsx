@@ -5,18 +5,44 @@ import { useMutation } from '@tanstack/react-query';
 import { Compass, Monitor, Move, Save, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-export const DeskLayoutCanvas = ({ floor, onSaved }: { floor: any; onSaved: () => void }) => {
-    const [selectedDesk, setSelectedDesk] = useState<any | null>(null);
+export interface DeskNode {
+    id: string;
+    code: string;
+    label?: string | null;
+    x: number;
+    y: number;
+    status: 'available' | 'booked' | 'occupied' | 'maintenance';
+    is_bookable?: number | boolean;
+    isBookable?: boolean;
+    equipment_tags?: string | null;
+    equipmentTags?: string | null;
+}
+
+export interface FloorCanvasData {
+    id: string;
+    name: string;
+    floorNumber: number;
+    slug: string;
+    desks?: DeskNode[];
+}
+
+interface DeskLayoutCanvasProps {
+    floor?: FloorCanvasData | null;
+    onSaved: () => void;
+}
+
+export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
+    const [selectedDesk, setSelectedDesk] = useState<DeskNode | null>(null);
     const [feedback, setFeedback] = useState<string | null>(null);
 
     const saveMutation = useMutation({
-        mutationFn: async (desk: any) => {
+        mutationFn: async (desk: DeskNode) => {
             await api.post(`/admin/desks/${desk.id}/layout`, {
                 x: desk.x,
                 y: desk.y,
                 label: desk.label,
                 equipmentTags: desk.equipment_tags || desk.equipmentTags,
-                isBookable: desk.is_bookable !== 0,
+                isBookable: desk.is_bookable !== 0 && desk.isBookable !== false,
             });
         },
         onSuccess: () => {
@@ -28,18 +54,26 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: { floor: any; onSaved: () =
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* 2D Canvas */}
             <div className="lg:col-span-8 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
                 <div className="flex items-center justify-between">
                     <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                        <Compass className="w-5 h-5 text-blue-600" /> Interactive Desk Layout Canvas
+                        <Compass className="w-5 h-5 text-blue-600 dark:text-cyan-400" /> Interactive Desk Layout Canvas
                     </h3>
                     <span className="text-xs text-slate-400 font-semibold">Click workstation node to edit properties</span>
                 </div>
 
-                <div className="relative w-full h-[450px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center p-6 select-none">
-                    <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #38bdf8 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+                <div 
+                    className="relative w-full h-[450px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center p-6 select-none"
+                    role="region"
+                    aria-label="Blueprint workstation positioning canvas"
+                >
+                    <div 
+                        className="absolute inset-0 opacity-20 pointer-events-none" 
+                        style={{ backgroundImage: 'radial-gradient(circle, #38bdf8 1px, transparent 1px)', backgroundSize: '24px 24px' }} 
+                    />
 
-                    {floor?.desks?.map((d: any) => {
+                    {floor?.desks?.map((d) => {
                         const isSelected = selectedDesk?.id === d.id;
                         const leftPercent = ((d.x + 5) / 10) * 100;
                         const topPercent = ((d.y + 5) / 10) * 100;
@@ -49,8 +83,12 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: { floor: any; onSaved: () =
                                 key={d.id}
                                 type="button"
                                 onClick={() => setSelectedDesk(d)}
-                                style={{ left: `${Math.max(5, Math.min(95, leftPercent))}%`, top: `${Math.max(5, Math.min(95, topPercent))}%` }}
-                                className={`absolute -translate-x-1/2 -translate-y-1/2 p-2 rounded-xl text-center border transition-all ${
+                                aria-label={`Select workstation ${d.code} (${d.label || 'Standard Desk'})`}
+                                style={{ 
+                                    left: `${Math.max(5, Math.min(95, leftPercent))}%`, 
+                                    top: `${Math.max(5, Math.min(95, topPercent))}%` 
+                                }}
+                                className={`absolute -translate-x-1/2 -translate-y-1/2 p-2 rounded-xl text-center border transition-all focus:outline-none focus:ring-4 focus:ring-blue-400 ${
                                     isSelected
                                         ? 'bg-blue-600 text-white border-amber-400 scale-110 ring-4 ring-blue-500/30 z-30'
                                         : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:border-blue-400 hover:scale-105 z-10'
@@ -64,6 +102,7 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: { floor: any; onSaved: () =
                 </div>
             </div>
 
+            {/* Inspector Panel */}
             <div className="lg:col-span-4 p-6 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col justify-between space-y-6">
                 {selectedDesk ? (
                     <div className="space-y-4">
@@ -79,7 +118,7 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: { floor: any; onSaved: () =
                                 value={selectedDesk.label || ''}
                                 onChange={(e) => setSelectedDesk({ ...selectedDesk, label: e.target.value })}
                                 placeholder="e.g. Creative Pod 1"
-                                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             />
                         </div>
 
@@ -88,37 +127,37 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: { floor: any; onSaved: () =
                             <input
                                 type="text"
                                 value={selectedDesk.equipment_tags || selectedDesk.equipmentTags || ''}
-                                onChange={(e) => setSelectedDesk({ ...selectedDesk, equipment_tags: e.target.value })}
+                                onChange={(e) => setSelectedDesk({ ...selectedDesk, equipment_tags: e.target.value, equipmentTags: e.target.value })}
                                 placeholder="Dual 4K, Standing Desk, USB-C Dock"
-                                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Canvas X</label>
+                                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Canvas X</label>
                                 <input
                                     type="number"
                                     step="0.5"
                                     value={selectedDesk.x}
                                     onChange={(e) => setSelectedDesk({ ...selectedDesk, x: Number(e.target.value) })}
-                                    className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                                    className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white"
                                 />
                             </div>
                             <div>
-                                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Canvas Y</label>
+                                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Canvas Y</label>
                                 <input
                                     type="number"
                                     step="0.5"
                                     value={selectedDesk.y}
                                     onChange={(e) => setSelectedDesk({ ...selectedDesk, y: Number(e.target.value) })}
-                                    className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                                    className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white"
                                 />
                             </div>
                         </div>
 
                         {feedback && (
-                            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 text-xs font-bold flex items-center gap-1.5">
+                            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-800">
                                 <CheckCircle2 className="w-4 h-4" /> {feedback}
                             </div>
                         )}
@@ -127,7 +166,7 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: { floor: any; onSaved: () =
                             type="button"
                             onClick={() => saveMutation.mutate(selectedDesk)}
                             disabled={saveMutation.isPending}
-                            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white shadow-lg transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white shadow-lg transition-all flex items-center justify-center gap-2 focus:ring-4 focus:ring-blue-400/40"
                         >
                             <Save className="w-4 h-4" /> Save Desk Configuration
                         </button>
@@ -145,3 +184,5 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: { floor: any; onSaved: () =
         </div>
     );
 };
+
+export default DeskLayoutCanvas;

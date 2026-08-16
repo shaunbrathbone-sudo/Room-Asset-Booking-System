@@ -368,3 +368,35 @@ CREATE INDEX IX_feature_requests_upvotes ON feature_requests(upvotes_count DESC)
 CREATE INDEX IX_bug_tickets_office ON bug_tickets(office_id);
 CREATE INDEX IX_bug_tickets_status ON bug_tickets(status);
 CREATE INDEX IX_bug_tickets_parent ON bug_tickets(parent_bug_id);
+-- Facility Areas for on-site amenities (kitchens, showers, restrooms, lounges)
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'facility_areas')
+BEGIN
+    CREATE TABLE facility_areas (
+        id NVARCHAR(36) PRIMARY KEY,
+        floor_id NVARCHAR(36) NOT NULL,
+        name NVARCHAR(255) NOT NULL,
+        type NVARCHAR(50) NOT NULL DEFAULT 'kitchen',
+        photo_url NVARCHAR(1000) NOT NULL,
+        description NVARCHAR(MAX),
+        created_at DATETIME2 DEFAULT GETUTCDATE(),
+        CONSTRAINT FK_facility_areas_floor FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE CASCADE
+    );
+END
+
+-- Interactive Photo Hotspots inside facility areas
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'facility_hotspots')
+BEGIN
+    CREATE TABLE facility_hotspots (
+        id NVARCHAR(36) PRIMARY KEY,
+        facility_id NVARCHAR(36) NOT NULL,
+        title NVARCHAR(255) NOT NULL,
+        item_name NVARCHAR(255),
+        description NVARCHAR(MAX),
+        instructions NVARCHAR(MAX),
+        pos_x FLOAT NOT NULL,
+        pos_y FLOAT NOT NULL,
+        icon NVARCHAR(50) DEFAULT 'Coffee',
+        created_at DATETIME2 DEFAULT GETUTCDATE(),
+        CONSTRAINT FK_facility_hotspots_facility FOREIGN KEY (facility_id) REFERENCES facility_areas(id) ON DELETE CASCADE
+    );
+END

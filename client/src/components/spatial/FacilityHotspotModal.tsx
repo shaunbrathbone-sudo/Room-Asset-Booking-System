@@ -1,9 +1,9 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
-    X, Sparkles, Coffee, Droplets, Utensils, Bath, 
-    Printer, Info, HelpCircle, CheckCircle, Flame, Shield 
+    X, Coffee, Droplets, Flame, HelpCircle, 
+    Sparkles, ShowerHead, KeyRound, Waves, Eye 
 } from 'lucide-react';
 
 export interface FacilityHotspot {
@@ -23,7 +23,7 @@ export interface FacilityArea {
     type: string;
     photoUrl: string;
     description?: string;
-    hotspots: FacilityHotspot[];
+    hotspots?: FacilityHotspot[];
 }
 
 interface FacilityHotspotModalProps {
@@ -33,46 +33,82 @@ interface FacilityHotspotModalProps {
 }
 
 const getHotspotIcon = (iconName?: string) => {
-    switch (iconName) {
-        case 'Coffee': return Coffee;
-        case 'Droplets': return Droplets;
-        case 'Utensils': return Utensils;
-        case 'Bath': return Bath;
-        case 'Printer': return Printer;
-        case 'Flame': return Flame;
-        case 'Shield': return Shield;
-        default: return Info;
+    switch (iconName?.toLowerCase()) {
+        case 'water':
+        case 'droplets':
+            return Droplets;
+        case 'shower':
+            return ShowerHead;
+        case 'flame':
+        case 'microwave':
+        case 'cooker':
+            return Flame;
+        case 'key':
+        case 'locker':
+            return KeyRound;
+        case 'pool':
+        case 'wellness':
+            return Waves;
+        case 'coffee':
+        default:
+            return Coffee;
     }
 };
 
 export const FacilityHotspotModal = ({ facility, isOpen, onClose }: FacilityHotspotModalProps) => {
     const [activeHotspot, setActiveHotspot] = useState<FacilityHotspot | null>(null);
 
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            onClose();
+        }
+    }, [onClose]);
+
+    useEffect(() => {
+        if (isOpen) {
+            window.addEventListener('keydown', handleKeyDown);
+            if (facility?.hotspots && facility.hotspots.length > 0) {
+                setActiveHotspot(facility.hotspots[0]);
+            }
+        } else {
+            setActiveHotspot(null);
+        }
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, facility, handleKeyDown]);
+
     if (!isOpen || !facility) return null;
 
     return (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="facility-modal-title"
+        >
+            <div 
+                className="relative w-full max-w-5xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
-                <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/40">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 capitalize">
-                                {facility.type.replace('_', ' ')}
-                            </span>
-                            <span className="text-xs text-slate-400 font-semibold">
-                                {facility.hotspots?.length || 0} Interactive Hotspots
-                            </span>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-cyan-400">
+                            <Coffee className="w-5 h-5" />
                         </div>
-                        <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white mt-0.5">
-                            {facility.name}
-                        </h2>
+                        <div>
+                            <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-cyan-400 tracking-wider">
+                                On-Site Facility Guide
+                            </span>
+                            <h2 id="facility-modal-title" className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+                                {facility.name}
+                            </h2>
+                        </div>
                     </div>
 
                     <button
                         onClick={onClose}
                         className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        aria-label="Close"
+                        aria-label="Close modal (Escape)"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -85,7 +121,7 @@ export const FacilityHotspotModal = ({ facility, isOpen, onClose }: FacilityHots
                         <div className="relative w-full h-full max-h-[480px] overflow-hidden rounded-2xl">
                             <img
                                 src={facility.photoUrl || 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=1200'}
-                                alt={facility.name}
+                                alt={`Photograph of ${facility.name} with interactive hotspot markers`}
                                 className="w-full h-full object-cover rounded-2xl select-none"
                             />
 
@@ -104,6 +140,7 @@ export const FacilityHotspotModal = ({ facility, isOpen, onClose }: FacilityHots
                                             type="button"
                                             onClick={() => setActiveHotspot(hs)}
                                             onMouseEnter={() => setActiveHotspot(hs)}
+                                            aria-label={`Hotspot for ${hs.title}`}
                                             className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-xl ${
                                                 isSelected
                                                     ? 'bg-amber-400 text-slate-950 scale-125 ring-4 ring-amber-400/50'
