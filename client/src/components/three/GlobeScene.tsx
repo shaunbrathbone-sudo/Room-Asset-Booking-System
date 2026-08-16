@@ -221,7 +221,41 @@ const RealTimeEarthSphere = () => {
     );
 };
 
-/* ─── Geographic Side HUD Office Pin (Clean Gap Offset) ──── */
+/* ─── Thick Illuminated 3D Leader Beam ─────────────────────── */
+
+interface LeaderBeamProps {
+    start: THREE.Vector3;
+    end: THREE.Vector3;
+    color: string;
+}
+
+const LeaderBeam = ({ start, end, color }: LeaderBeamProps) => {
+    const { position, quaternion, length } = useMemo(() => {
+        const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const len = dir.length();
+
+        const quat = new THREE.Quaternion();
+        quat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+
+        return { position: mid, quaternion: quat, length: len };
+    }, [start, end]);
+
+    return (
+        <mesh position={position} quaternion={quaternion}>
+            {/* Thicker, solid cylindrical 3D laser line */}
+            <cylinderGeometry args={[0.16, 0.16, length, 8]} />
+            <meshStandardMaterial
+                color={color}
+                emissive={color}
+                emissiveIntensity={2.5}
+                roughness={0.2}
+            />
+        </mesh>
+    );
+};
+
+/* ─── Geographic Side HUD Office Pin ──────────────────────── */
 
 interface OfficePinProps {
     office: {
@@ -240,6 +274,7 @@ interface OfficePinProps {
 const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
     const isLondon = office.slug.includes('london');
     const badgeLabel = isLondon ? '🇬🇧 London HQ' : '🇬🇧 Leicester Hub';
+    const themeColor = isLondon ? '#38bdf8' : '#f59e0b';
 
     // Dot is placed at exact geographic coordinates
     const dotPos = useMemo(
@@ -247,21 +282,13 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
         [office.latitude, office.longitude]
     );
 
-    // Label is placed with a comfortable clean gap to the East (right) over the North Sea
+    // Label is placed with comfortable rightward offset
     const labelLngOffset = isLondon ? 6.2 : 5.8;
     const labelLatOffset = isLondon ? -0.2 : 0.2;
     const labelPos = useMemo(
         () => latLngToVector3(office.latitude + labelLatOffset, office.longitude + labelLngOffset, 100.5),
         [office.latitude, office.longitude, isLondon, labelLatOffset, labelLngOffset]
     );
-
-    // Leader line connects dotPos to labelPos
-    const leaderLinePoints = useMemo(() => {
-        return new Float32Array([
-            dotPos.x, dotPos.y, dotPos.z,
-            labelPos.x, labelPos.y, labelPos.z,
-        ]);
-    }, [dotPos, labelPos]);
 
     const meshRef = useRef<THREE.Mesh>(null);
     const [hovered, setHovered] = useState(false);
@@ -275,21 +302,8 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
 
     return (
         <group>
-            {/* Connecting Horizontal Leader Line (from Pin to Side Label) */}
-            <line>
-                <bufferGeometry>
-                    <bufferAttribute
-                        attach="attributes-position"
-                        args={[leaderLinePoints, 3]}
-                    />
-                </bufferGeometry>
-                <lineBasicMaterial
-                    color={isLondon ? '#38bdf8' : '#f59e0b'}
-                    linewidth={1.5}
-                    transparent
-                    opacity={0.75}
-                />
-            </line>
+            {/* Thicker 3D Illuminated Leader Beam */}
+            <LeaderBeam start={dotPos} end={labelPos} color={themeColor} />
 
             {/* Pin Dot right over physical city location */}
             <group position={dotPos}>
@@ -299,7 +313,7 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
                     onPointerLeave={() => setHovered(false)}
                     onClick={() => onSelectOffice(office.countrySlug, office.slug)}
                 >
-                    <sphereGeometry args={[0.8, 20, 20]} />
+                    <sphereGeometry args={[0.9, 20, 20]} />
                     <meshStandardMaterial
                         color={hovered ? '#fbbf24' : isLondon ? '#38bdf8' : '#ef4444'}
                         emissive={hovered ? '#f59e0b' : isLondon ? '#0284c7' : '#dc2626'}
@@ -310,7 +324,7 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
 
                 {/* Radar Pulsing Ring */}
                 <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                    <ringGeometry args={[0.9, 1.6, 24]} />
+                    <ringGeometry args={[1.0, 1.7, 24]} />
                     <meshBasicMaterial
                         color={isLondon ? '#38bdf8' : '#ef4444'}
                         transparent
@@ -320,7 +334,7 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
                 </mesh>
             </group>
 
-            {/* Side-Positioned Micro HUD Tag with Clean Gap */}
+            {/* Side-Positioned Micro HUD Tag */}
             <group position={labelPos}>
                 <Html
                     distanceFactor={45}
@@ -447,7 +461,7 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 <RealTimeEarthSphere />
             </Suspense>
 
-            {/* Individual Office Pins with Clean Gap Side Labels */}
+            {/* Individual Office Pins with Thicker 3D Leader Beams */}
             {allOffices.map((office) => (
                 <OfficePin
                     key={office.id}
