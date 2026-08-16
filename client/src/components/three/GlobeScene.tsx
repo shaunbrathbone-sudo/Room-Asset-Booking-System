@@ -1,13 +1,13 @@
 ﻿'use client';
 
-import { useRef, useMemo, useState, Suspense } from 'react';
+import { useRef, useMemo, useState, useEffect, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html, Stars, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTheme } from 'next-themes';
 import type { Country } from '@/types/spatial';
 
-/* ─── Helpers ────────────────────────────────────────────── */
+/* ─── Helpers & Real-Time Solar Calculations ─────────────── */
 
 const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector3 => {
     const phi = (90 - lat) * (Math.PI / 180);
@@ -19,9 +19,87 @@ const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector
     );
 };
 
-/* ─── Realistic NASA Blue Marble Earth Sphere ────────────── */
+/** Calculate Sun position vector from current UTC time */
+const calculateSunPosition = (date: Date = new Date(), radius: number = 300): THREE.Vector3 => {
+    const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+    // At 12:00 UTC, Sun is at 0° longitude (Greenwich / UK meridian)
+    const sunLng = -((utcHours - 12) * 15);
+    // Approximate seasonal solar declination (-23.44° to +23.44°)
+    const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
+    const sunLat = 23.44 * Math.sin(((dayOfYear - 80) / 365) * 2 * Math.PI);
 
-const EarthSphere = ({ isDark }: { isDark: boolean }) => {
+    return latLngToVector3(sunLat, sunLng, radius);
+};
+
+/* ─── Custom Real-Time Day/Night Earth Shader Material ───── */
+
+const EarthDayNightShader = {
+    uniforms: {
+        dayTexture: { value: null },
+        nightTexture: { value: null },
+        bumpTexture: { value: null },
+        sunDirection: { value: new THREE.Vector3(0, 0, 1) },
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+
+        void main() {
+            vUv = uv;
+            vNormal = normalize(normalMatrix * normal);
+            vec4 worldPos = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPos.xyz;
+            gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D dayTexture;
+        uniform sampler2D nightTexture;
+        uniform vec3 sunDirection;
+
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+
+        void main() {
+            vec3 norm = normalize(vNormal);
+            vec3 sunNorm = normalize(sunDirection);
+            
+            // Calculate sunlight intensity based on angle to sun
+            float sunDot = dot(norm, sunNorm);
+            
+            // Smooth daylight transition zone (dawn/dusk terminator)
+            float dayFactor = smoothstep(-0.15, 0.25, sunDot);
+            
+            vec4 dayColor = texture2D(dayTexture, vUv);
+            vec4 nightColor = texture2D(nightTexture, vUv);
+            
+            // Enhance brightness of daytime oceans and continents
+            dayColor.rgb *= 1.35;
+            
+            // City lights glow warmly on night side
+            nightColor.rgb *= vec3(1.4, 1.2, 0.9) * 1.8;
+            
+            // Blend day map and night map
+            vec3 blended = mix(nightColor.rgb, dayColor.rgb, dayFactor);
+            
+            // Subtle golden sunset glow on the terminator line
+            float sunsetFactor = smoothstep(-0.1, 0.05, sunDot) * smoothstep(0.2, 0.05, sunDot);
+            vec3 sunsetColor = vec3(1.0, 0.5, 0.1) * sunsetFactor * 0.4;
+            
+            // Atmospheric limb scattering
+            float viewDot = 1.0 - max(0.0, dot(normalize(-vWorldPosition), norm));
+            vec3 atmosphereColor = vec3(0.3, 0.6, 1.0) * pow(viewDot, 3.0) * max(0.2, dayFactor);
+
+            gl_FragColor = vec4(blended + sunsetColor + atmosphereColor, 1.0);
+        }
+    `,
+};
+
+/* ─── Real-Time Sunlit Earth Sphere ───────────────────────── */
+
+const RealTimeEarthSphere = () => {
     const meshRef = useRef<THREE.Mesh>(null);
     const atmosphereRef = useRef<THREE.Mesh>(null);
 
@@ -31,30 +109,34 @@ const EarthSphere = ({ isDark }: { isDark: boolean }) => {
         '/textures/earth_bump.png',
     ]);
 
-    useFrame((_, delta) => {
-        if (meshRef.current) {
-            meshRef.current.rotation.y += delta * 0.04;
-        }
-        if (atmosphereRef.current) {
-            atmosphereRef.current.rotation.y += delta * 0.04;
+    const sunPosition = useMemo(() => calculateSunPosition(new Date()), []);
+
+    const shaderMaterial = useMemo(() => {
+        const mat = new THREE.ShaderMaterial({
+            uniforms: {
+                dayTexture: { value: dayTexture },
+                nightTexture: { value: nightTexture },
+                bumpTexture: { value: bumpTexture },
+                sunDirection: { value: sunPosition.clone().normalize() },
+            },
+            vertexShader: EarthDayNightShader.vertexShader,
+            fragmentShader: EarthDayNightShader.fragmentShader,
+        });
+        return mat;
+    }, [dayTexture, nightTexture, bumpTexture, sunPosition]);
+
+    useFrame(() => {
+        const currentSunPos = calculateSunPosition(new Date());
+        if (shaderMaterial) {
+            shaderMaterial.uniforms.sunDirection.value.copy(currentSunPos.clone().normalize());
         }
     });
 
     return (
         <group>
-            {/* Core Photorealistic Earth */}
-            <mesh ref={meshRef}>
+            {/* Core Photorealistic Day/Night Earth */}
+            <mesh ref={meshRef} material={shaderMaterial}>
                 <sphereGeometry args={[100, 64, 64]} />
-                <meshStandardMaterial
-                    map={isDark ? nightTexture : dayTexture}
-                    bumpMap={bumpTexture}
-                    bumpScale={2.5}
-                    roughness={0.65}
-                    metalness={0.1}
-                    emissive={isDark ? '#38bdf8' : '#000000'}
-                    emissiveMap={isDark ? nightTexture : undefined}
-                    emissiveIntensity={isDark ? 0.8 : 0}
-                />
             </mesh>
 
             {/* Atmosphere Glow Shell */}
@@ -63,18 +145,7 @@ const EarthSphere = ({ isDark }: { isDark: boolean }) => {
                 <meshBasicMaterial
                     color="#60a5fa"
                     transparent
-                    opacity={isDark ? 0.18 : 0.12}
-                    side={THREE.BackSide}
-                />
-            </mesh>
-
-            {/* Outer Rim Light */}
-            <mesh scale={[1.06, 1.06, 1.06]}>
-                <sphereGeometry args={[100, 32, 32]} />
-                <meshBasicMaterial
-                    color="#38bdf8"
-                    transparent
-                    opacity={0.08}
+                    opacity={0.14}
                     side={THREE.BackSide}
                 />
             </mesh>
@@ -170,18 +241,25 @@ interface GlobeSceneProps {
 const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
+    const sunPos = useMemo(() => calculateSunPosition(new Date()), []);
 
     return (
         <>
-            <ambientLight intensity={isDark ? 0.8 : 1.6} />
-            <directionalLight position={[150, 80, 120]} intensity={2.5} color="#ffffff" />
-            <directionalLight position={[-150, -50, -100]} intensity={0.8} color="#93c5fd" />
-            <pointLight position={[0, 100, 100]} intensity={1.2} color="#ffffff" />
+            {/* Real Sun Light matching current solar time */}
+            <directionalLight
+                position={[sunPos.x, sunPos.y, sunPos.z]}
+                intensity={3.0}
+                color="#fffcf2"
+            />
+            {/* Soft Ambient Fill Light */}
+            <ambientLight intensity={0.6} />
+            {/* Soft space rim light */}
+            <directionalLight position={[-sunPos.x, -sunPos.y, -sunPos.z]} intensity={0.4} color="#60a5fa" />
 
             {isDark && <Stars radius={350} depth={80} count={4000} factor={5} fade speed={0.4} />}
 
             <Suspense fallback={null}>
-                <EarthSphere isDark={isDark} />
+                <RealTimeEarthSphere />
             </Suspense>
 
             {countries.map((country) => (
@@ -197,8 +275,7 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 enablePan={false}
                 minDistance={140}
                 maxDistance={380}
-                autoRotate
-                autoRotateSpeed={0.3}
+                autoRotate={false}
                 dampingFactor={0.06}
             />
         </>
@@ -206,10 +283,11 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
 };
 
 export const GlobeScene = ({ countries, onCountrySelect }: GlobeSceneProps) => {
+    // Initial camera position positioned to look directly at the UK (lat 52.6, lng -1.1) in midday sun
     return (
         <div className="w-full h-full min-h-[650px] relative">
             <Canvas
-                camera={{ position: [0, 30, 250], fov: 45 }}
+                camera={{ position: [0, 45, 230], fov: 45 }}
                 gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping }}
                 style={{ background: 'transparent' }}
             >
