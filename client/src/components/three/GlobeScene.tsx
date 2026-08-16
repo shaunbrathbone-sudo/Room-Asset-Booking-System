@@ -221,7 +221,7 @@ const RealTimeEarthSphere = () => {
     );
 };
 
-/* ─── Individual Office Location Pin (Side HUD Label) ────── */
+/* ─── Geographic Side HUD Office Pin ──────────────────────── */
 
 interface OfficePinProps {
     office: {
@@ -238,10 +238,30 @@ interface OfficePinProps {
 }
 
 const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
-    const position = useMemo(
-        () => latLngToVector3(office.latitude, office.longitude, 100.2),
+    const isLondon = office.slug.includes('london');
+    const badgeLabel = isLondon ? '🇬🇧 London HQ' : '🇬🇧 Leicester Hub';
+
+    // Dot is placed at exact geographic coordinates
+    const dotPos = useMemo(
+        () => latLngToVector3(office.latitude, office.longitude, 100.25),
         [office.latitude, office.longitude]
     );
+
+    // Label is placed geographically to the East (right) of the pin over the North Sea
+    const labelLngOffset = isLondon ? 3.6 : 3.2;
+    const labelLatOffset = isLondon ? -0.3 : 0.4;
+    const labelPos = useMemo(
+        () => latLngToVector3(office.latitude + labelLatOffset, office.longitude + labelLngOffset, 100.5),
+        [office.latitude, office.longitude, isLondon, labelLatOffset, labelLngOffset]
+    );
+
+    // Leader line connects dotPos to labelPos
+    const leaderLinePoints = useMemo(() => {
+        return new Float32Array([
+            dotPos.x, dotPos.y, dotPos.z,
+            labelPos.x, labelPos.y, labelPos.z,
+        ]);
+    }, [dotPos, labelPos]);
 
     const meshRef = useRef<THREE.Mesh>(null);
     const [hovered, setHovered] = useState(false);
@@ -253,73 +273,74 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
         }
     });
 
-    const isLondon = office.slug.includes('london');
-    const badgeLabel = isLondon ? '🇬🇧 London HQ' : '🇬🇧 Leicester Hub';
-
-    // Stagger side label positions to avoid overlap between Leicester and London
-    const sideOffsetX = isLondon ? 3.0 : 3.0;
-    const sideOffsetY = isLondon ? -0.8 : 0.8;
-
     return (
-        <group position={position}>
-            {/* Compact Pin Sphere */}
-            <mesh
-                ref={meshRef}
-                onPointerEnter={() => setHovered(true)}
-                onPointerLeave={() => setHovered(false)}
-                onClick={() => onSelectOffice(office.countrySlug, office.slug)}
-            >
-                <sphereGeometry args={[0.8, 20, 20]} />
-                <meshStandardMaterial
-                    color={hovered ? '#fbbf24' : isLondon ? '#38bdf8' : '#ef4444'}
-                    emissive={hovered ? '#f59e0b' : isLondon ? '#0284c7' : '#dc2626'}
-                    emissiveIntensity={3}
-                    roughness={0.1}
-                />
-            </mesh>
-
-            {/* Radar Pulsing Ring */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[0.9, 1.6, 24]} />
-                <meshBasicMaterial
-                    color={isLondon ? '#38bdf8' : '#ef4444'}
-                    transparent
-                    opacity={0.4}
-                    side={THREE.DoubleSide}
-                />
-            </mesh>
-
-            {/* Horizontal Side Leader Stem Line */}
+        <group>
+            {/* Connecting Horizontal Leader Line (from Pin to Side Label) */}
             <line>
                 <bufferGeometry>
                     <bufferAttribute
                         attach="attributes-position"
-                        args={[new Float32Array([0, 0, 0, sideOffsetX * 0.7, sideOffsetY, 0]), 3]}
+                        args={[leaderLinePoints, 3]}
                     />
                 </bufferGeometry>
-                <lineBasicMaterial color={isLondon ? '#38bdf8' : '#f59e0b'} linewidth={1.5} transparent opacity={0.8} />
+                <lineBasicMaterial
+                    color={isLondon ? '#38bdf8' : '#f59e0b'}
+                    linewidth={1.5}
+                    transparent
+                    opacity={0.85}
+                />
             </line>
 
-            {/* Side Positioned Micro-Tag */}
-            <Html
-                position={[sideOffsetX, sideOffsetY, 0]}
-                distanceFactor={45}
-                center={false}
-                style={{ pointerEvents: 'auto', cursor: 'pointer' }}
-            >
-                <button
+            {/* Pin Dot right over physical city location */}
+            <group position={dotPos}>
+                <mesh
+                    ref={meshRef}
+                    onPointerEnter={() => setHovered(true)}
+                    onPointerLeave={() => setHovered(false)}
                     onClick={() => onSelectOffice(office.countrySlug, office.slug)}
-                    className="group flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/95 backdrop-blur-md text-white border border-amber-400/80 shadow-lg shadow-amber-500/20 hover:scale-110 hover:border-amber-300 transition-transform whitespace-nowrap"
                 >
-                    <span className={`w-1.5 h-1.5 rounded-full ${isLondon ? 'bg-cyan-400' : 'bg-emerald-400'} animate-ping flex-shrink-0`} />
-                    <span className="text-[10px] font-bold text-white tracking-tight">
-                        {badgeLabel}
-                    </span>
-                    <span className="text-[9px] text-amber-300 font-semibold px-1 rounded bg-white/15">
-                        {office.availableDesks ?? 8}
-                    </span>
-                </button>
-            </Html>
+                    <sphereGeometry args={[0.8, 20, 20]} />
+                    <meshStandardMaterial
+                        color={hovered ? '#fbbf24' : isLondon ? '#38bdf8' : '#ef4444'}
+                        emissive={hovered ? '#f59e0b' : isLondon ? '#0284c7' : '#dc2626'}
+                        emissiveIntensity={3}
+                        roughness={0.1}
+                    />
+                </mesh>
+
+                {/* Radar Pulsing Ring */}
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[0.9, 1.6, 24]} />
+                    <meshBasicMaterial
+                        color={isLondon ? '#38bdf8' : '#ef4444'}
+                        transparent
+                        opacity={0.4}
+                        side={THREE.DoubleSide}
+                    />
+                </mesh>
+            </group>
+
+            {/* Side-Positioned Micro HUD Tag (To the East of the Pin) */}
+            <group position={labelPos}>
+                <Html
+                    distanceFactor={45}
+                    center
+                    style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                >
+                    <button
+                        onClick={() => onSelectOffice(office.countrySlug, office.slug)}
+                        className="group flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/95 backdrop-blur-md text-white border border-amber-400/80 shadow-xl shadow-amber-500/20 hover:scale-110 hover:border-amber-300 transition-transform whitespace-nowrap"
+                    >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isLondon ? 'bg-cyan-400' : 'bg-emerald-400'} animate-ping flex-shrink-0`} />
+                        <span className="text-[10px] font-bold text-white tracking-tight">
+                            {badgeLabel}
+                        </span>
+                        <span className="text-[9px] text-amber-300 font-semibold px-1 rounded bg-white/15">
+                            {office.availableDesks ?? 8}
+                        </span>
+                    </button>
+                </Html>
+            </group>
         </group>
     );
 };
@@ -426,7 +447,7 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 <RealTimeEarthSphere />
             </Suspense>
 
-            {/* Individual Office Pins on Globe */}
+            {/* Individual Office Pins with Side Geographic Labels */}
             {allOffices.map((office) => (
                 <OfficePin
                     key={office.id}
