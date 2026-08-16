@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
     Zap, X, Clock, Users, Monitor, Tv, 
@@ -54,6 +55,11 @@ export const BookNowQuickModal = ({ isOpen, onClose }: BookNowQuickModalProps) =
     const [selectedDuration, setSelectedDuration] = useState<number>(60);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Close on Escape key
     useEffect(() => {
@@ -102,12 +108,12 @@ export const BookNowQuickModal = ({ isOpen, onClose }: BookNowQuickModalProps) =
         },
     });
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
     const rooms = data?.rooms || [];
     const desks = data?.desks || [];
 
-    return (
+    const modal = (
         <div 
             role="dialog" 
             aria-modal="true"
@@ -333,6 +339,8 @@ export const BookNowQuickModal = ({ isOpen, onClose }: BookNowQuickModalProps) =
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 };
 
 export default BookNowQuickModal;
