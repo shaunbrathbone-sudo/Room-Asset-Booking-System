@@ -34,4 +34,7 @@ Whenever a new feature is created, add an entry here with a unique sequential ID
 | FEAT-0023 | 2026-08-16 | Employee Profile Photo & Avatar System | Upload personal photo from device or choose corporate preset (/settings) with live display in Navbar and User Directory. | Completed |
 | FEAT-0024 | 2026-08-16 | Geographically-Locked Real-Time Day/Night Engine | World-space solar shader locking day/night terminator line to real UTC clock time while allowing 360° camera orbit. | Completed |
 | FEAT-0025 | 2026-08-16 | 3D GeoJSON Vector Country Boundaries Overlay | Crisp semi-transparent 3D country border outlines around all global nations rendered directly over the Earth sphere. | Completed |
+| FEAT-0026 | 2026-08-16 | London Office (Brandwidth HQ, Clerkenwell) Spatial Estate | Added 2-floor London HQ (28 desks, 2 meeting suites, 6 zones) with live induction guide. | Completed |
+| FEAT-0027 | 2026-08-16 | Multi-Week Recurring Hybrid Workstation Scheduler | Automated multi-week recurring reservation engine in ScheduleDrawer and backend /api/bookings/recurring. | Completed |
+| FEAT-0028 | 2026-08-16 | Multi-Hub Workplace Gallery & Direct Guide Launchers | Rich office cards in /explore/united-kingdom with direct 3D stack links and welcome guides. | Completed |
 <!-- Append new features above this line -->

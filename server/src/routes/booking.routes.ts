@@ -1,112 +1,232 @@
-﻿import { Router, Request, Response } from 'express';
-import { z } from 'zod';
-import { authenticate, optionalAuth } from '../middleware/auth';
-import { validateBody, validateQuery } from '../middleware/validate';
-import * as bookingService from '../services/booking.service';
+﻿import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { getPool } from '../config/database';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
+router.use(authenticate);
 
-const createBookingSchema = z.object({
-    resourceType: z.enum(['desk', 'meeting_room', 'asset']),
-    resourceId: z.string().uuid(),
-    startTime: z.string().datetime({ offset: true }).or(z.string().min(10)),
-    endTime: z.string().datetime({ offset: true }).or(z.string().min(10)),
-    licenseImageUrl: z.string().optional(),
-    startMileage: z.number().optional(),
-    notes: z.string().max(1000).optional(),
-});
-
-const timelineQuerySchema = z.object({
-    floorId: z.string().uuid(),
-    startDate: z.string().min(10),
-    endDate: z.string().min(10),
-});
-
-/**
- * POST /api/bookings — Create a new booking
- */
-router.post('/', authenticate, validateBody(createBookingSchema), async (req: Request, res: Response) => {
+// ── 1. GET USER BOOKINGS ─────────────────────────────────────────
+router.get('/', async (req, res) => {
     try {
-        const booking = await bookingService.createBooking({
-            userId: req.user!.id,
-            ...req.body,
+        const pool = await getPool();
+        const userId = req.user!.id;
+
+        const result = await pool.request()
+            .input('userId', userId)
+            .query(`
+                SELECT 
+                    b.id, b.resource_type, b.resource_id, b.start_time, b.end_time,
+                    b.status, b.check_in_token, b.checked_in_at, b.created_at,
+                    CASE 
+                        WHEN b.resource_type = 'desk' THEN d.code
+                        WHEN b.resource_type = 'meeting_room' THEN mr.name
+                        WHEN b.resource_type = 'asset' THEN a.name
+                        ELSE 'Resource'
+                    END AS resource_name,
+                    CASE 
+                        WHEN b.resource_type = 'desk' THEN f.name
+                        WHEN b.resource_type = 'meeting_room' THEN rf.name
+                        ELSE NULL
+                    END AS floor_name,
+                    CASE 
+                        WHEN b.resource_type = 'desk' THEN o.name
+                        WHEN b.resource_type = 'meeting_room' THEN ro.name
+                        ELSE NULL
+                    END AS office_name
+                FROM bookings b
+                LEFT JOIN desks d ON d.id = b.resource_id AND b.resource_type = 'desk'
+                LEFT JOIN zones z ON z.id = d.zone_id
+                LEFT JOIN floors f ON f.id = z.floor_id
+                LEFT JOIN offices o ON o.id = f.office_id
+                LEFT JOIN meeting_rooms mr ON mr.id = b.resource_id AND b.resource_type = 'meeting_room'
+                LEFT JOIN zones rz ON rz.id = mr.zone_id
+                LEFT JOIN floors rf ON rf.id = rz.floor_id
+                LEFT JOIN offices ro ON ro.id = rf.office_id
+                LEFT JOIN assets a ON a.id = b.resource_id AND b.resource_type = 'asset'
+                WHERE b.user_id = @userId
+                ORDER BY b.start_time DESC
+            `);
+
+        res.json(result.recordset.map((row: any) => ({
+            id: row.id,
+            resourceType: row.resource_type,
+            resourceId: row.resource_id,
+            resourceName: row.resource_name,
+            floorName: row.floor_name,
+            officeName: row.office_name,
+            startTime: row.start_time,
+            endTime: row.end_time,
+            status: row.status,
+            checkInToken: row.check_in_token,
+            checkedInAt: row.checked_in_at,
+            createdAt: row.created_at,
+        })));
+    } catch (err) {
+        console.error('Error fetching bookings:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ── 2. CREATE SINGLE BOOKING ─────────────────────────────────────
+router.post('/', async (req, res) => {
+    try {
+        const { resourceType, resourceId, startTime, endTime, notes } = req.body;
+        const userId = req.user!.id;
+
+        if (!resourceType || !resourceId || !startTime || !endTime) {
+            return res.status(400).json({ error: 'Missing required reservation fields' });
+        }
+
+        const pool = await getPool();
+
+        // Conflict check
+        const conflict = await pool.request()
+            .input('resourceId', resourceId)
+            .input('startTime', startTime)
+            .input('endTime', endTime)
+            .query(`
+                SELECT id FROM bookings
+                WHERE resource_id = @resourceId
+                  AND status IN ('confirmed', 'pending_approval')
+                  AND datetime(start_time) < datetime(@endTime)
+                  AND datetime(end_time) > datetime(@startTime)
+            `);
+
+        if (conflict.recordset.length > 0) {
+            return res.status(409).json({ error: 'Workstation or asset is already booked for this time window.' });
+        }
+
+        // Check if resource requires approval
+        let initialStatus = 'confirmed';
+        if (resourceType === 'meeting_room') {
+            const roomRes = await pool.request().input('id', resourceId).query('SELECT requires_approval FROM meeting_rooms WHERE id = @id');
+            if (roomRes.recordset[0]?.requires_approval === 1) initialStatus = 'pending_approval';
+        } else if (resourceType === 'asset') {
+            const assetRes = await pool.request().input('id', resourceId).query('SELECT requires_approval FROM assets WHERE id = @id');
+            if (assetRes.recordset[0]?.requires_approval === 1) initialStatus = 'pending_approval';
+        }
+
+        const bookingId = uuidv4();
+        const checkInToken = uuidv4();
+
+        await pool.request()
+            .input('id', bookingId)
+            .input('userId', userId)
+            .input('resourceType', resourceType)
+            .input('resourceId', resourceId)
+            .input('startTime', startTime)
+            .input('endTime', endTime)
+            .input('status', initialStatus)
+            .input('checkInToken', checkInToken)
+            .input('notes', notes || null)
+            .query(`
+                INSERT INTO bookings (id, user_id, resource_type, resource_id, start_time, end_time, status, check_in_token, notes)
+                VALUES (@id, @userId, @resourceType, @resourceId, @startTime, @endTime, @status, @checkInToken, @notes)
+            `);
+
+        res.status(201).json({
+            message: initialStatus === 'pending_approval' ? 'Reservation submitted for manager approval.' : 'Reservation confirmed successfully.',
+            bookingId,
+            status: initialStatus,
+            checkInToken,
         });
-        res.status(201).json(booking);
     } catch (err) {
-        res.status(400).json({ error: (err as Error).message });
+        console.error('Error creating booking:', err);
+        res.status(500).json({ error: 'Internal server error creating booking' });
     }
 });
 
-/**
- * GET /api/bookings/my — Get authenticated user bookings
- */
-router.get('/my', authenticate, async (req: Request, res: Response) => {
+// ── 3. CREATE RECURRING BOOKING SERIES ────────────────────────────
+router.post('/recurring', async (req, res) => {
     try {
-        const bookings = await bookingService.getUserBookings(req.user!.id);
-        res.json(bookings);
-    } catch (err) {
-        res.status(500).json({ error: (err as Error).message });
-    }
-});
+        const { resourceType, resourceId, startTimeHours, endTimeHours, repeatDays, weeksCount = 4, notes } = req.body;
+        const userId = req.user!.id;
 
-/**
- * GET /api/bookings/timeline — Get floor booking schedule
- */
-router.get('/timeline', optionalAuth, validateQuery(timelineQuerySchema), async (req: Request, res: Response) => {
-    try {
-        const { floorId, startDate, endDate } = req.query as unknown as { floorId: string; startDate: string; endDate: string };
-        const timeline = await bookingService.getFloorBookingsTimeline(floorId, startDate, endDate);
-        res.json(timeline);
-    } catch (err) {
-        res.status(500).json({ error: (err as Error).message });
-    }
-});
-
-/**
- * DELETE /api/bookings/:id — Cancel a booking (authenticated)
- */
-router.delete('/:id', authenticate, async (req: Request, res: Response) => {
-    try {
-        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-        const isAdmin = req.user!.role === 'location_admin' || req.user!.role === 'super_admin';
-        await bookingService.cancelBooking(id, req.user!.id, isAdmin);
-        res.json({ message: 'Booking cancelled successfully' });
-    } catch (err) {
-        res.status(400).json({ error: (err as Error).message });
-    }
-});
-
-/**
- * GET /api/bookings/cancel-by-token?token= — 1-Click tokenized cancellation
- */
-router.get('/cancel-by-token', async (req: Request, res: Response) => {
-    try {
-        const token = req.query.token as string;
-        if (!token) {
-            res.status(400).json({ error: 'Cancellation token required' });
-            return;
+        // repeatDays is an array of weekday numbers [0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat]
+        if (!resourceType || !resourceId || !startTimeHours || !endTimeHours || !Array.isArray(repeatDays) || repeatDays.length === 0) {
+            return res.status(400).json({ error: 'Missing recurring scheduling parameters.' });
         }
-        const result = await bookingService.cancelBookingByToken(token);
-        res.json(result);
-    } catch (err) {
-        res.status(400).json({ error: (err as Error).message });
-    }
-});
 
-/**
- * POST /api/bookings/checkin-by-token — QR/Web Check-in
- */
-router.post('/checkin-by-token', async (req: Request, res: Response) => {
-    try {
-        const { token } = req.body;
-        if (!token) {
-            res.status(400).json({ error: 'Check-in token required' });
-            return;
+        const pool = await getPool();
+        const recurringGroupId = uuidv4();
+        const createdBookings: any[] = [];
+        const skippedConflicts: string[] = [];
+
+        const today = new Date();
+
+        for (let w = 0; w < weeksCount; w++) {
+            for (const dayOfWeek of repeatDays) {
+                const targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + (w * 7) + ((dayOfWeek - today.getDay() + 7) % 7));
+
+                const [startH, startM] = startTimeHours.split(':').map(Number);
+                const [endH, endM] = endTimeHours.split(':').map(Number);
+
+                const startDateTime = new Date(targetDate);
+                startDateTime.setHours(startH, startM, 0, 0);
+
+                const endDateTime = new Date(targetDate);
+                endDateTime.setHours(endH, endM, 0, 0);
+
+                const startIso = startDateTime.toISOString();
+                const endIso = endDateTime.toISOString();
+
+                // Conflict check for this specific recurring occurrence
+                const conflict = await pool.request()
+                    .input('resourceId', resourceId)
+                    .input('startTime', startIso)
+                    .input('endTime', endIso)
+                    .query(`
+                        SELECT id FROM bookings
+                        WHERE resource_id = @resourceId
+                          AND status IN ('confirmed', 'pending_approval')
+                          AND datetime(start_time) < datetime(@endTime)
+                          AND datetime(end_time) > datetime(@startTime)
+                    `);
+
+                if (conflict.recordset.length > 0) {
+                    skippedConflicts.push(startDateTime.toLocaleDateString('en-GB'));
+                    continue;
+                }
+
+                const bookingId = uuidv4();
+                const checkInToken = uuidv4();
+
+                await pool.request()
+                    .input('id', bookingId)
+                    .input('userId', userId)
+                    .input('resourceType', resourceType)
+                    .input('resourceId', resourceId)
+                    .input('startTime', startIso)
+                    .input('endTime', endIso)
+                    .input('status', 'confirmed')
+                    .input('checkInToken', checkInToken)
+                    .input('notes', notes ? `${notes} (Recurring Series)` : 'Recurring Hybrid Reservation')
+                    .query(`
+                        INSERT INTO bookings (id, user_id, resource_type, resource_id, start_time, end_time, status, check_in_token, notes)
+                        VALUES (@id, @userId, @resourceType, @resourceId, @startTime, @endTime, @status, @checkInToken, @notes)
+                    `);
+
+                createdBookings.push({
+                    id: bookingId,
+                    date: startDateTime.toLocaleDateString('en-GB'),
+                    startTime: startIso,
+                    endTime: endIso,
+                });
+            }
         }
-        const result = await bookingService.checkinBooking(token);
-        res.json(result);
+
+        res.status(201).json({
+            message: `Created ${createdBookings.length} recurring reservations across ${weeksCount} weeks.`,
+            recurringGroupId,
+            totalCreated: createdBookings.length,
+            createdBookings,
+            skippedConflicts,
+        });
     } catch (err) {
-        res.status(400).json({ error: (err as Error).message });
+        console.error('Error creating recurring bookings:', err);
+        res.status(500).json({ error: 'Internal server error creating recurring reservations' });
     }
 });
 

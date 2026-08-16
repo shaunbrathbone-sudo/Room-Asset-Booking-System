@@ -18,4 +18,5 @@ A record of larger tasks completed across the **Room-Asset-Booking-System** proj
 | 2026-08-16 | Cloudfy Branding & Profile Photo Avatar System | Rebranded system to Cloudfy Workspaces; built Profile photo uploader (device upload + presets) in /settings with live instant avatar rendering in the Navbar, User Directory, and Reservation system. |
 | 2026-08-16 | Geographically-Locked Real-Time Solar Engine | Updated GLSL day/night shader to world-space normals, locking the sunlight hemisphere and night city lights to actual Earth geography based on live UTC clock time while permitting free 360° camera orbit. |
 | 2026-08-16 | 3D Country Borders Line Layer | Integrated a 3D vector GeoJSON country boundary layer rendering glowing outlines around every sovereign country across all continents on the 3D globe. |
+| 2026-08-16 | London Office Estate & Recurring Hybrid Booking | Seeded London Office (Brandwidth HQ, Clerkenwell) with 2 floors, 28 desks, 2 meeting suites, and induction guide; built multi-week Recurring Hybrid Reservation engine in backend and ScheduleDrawer.tsx; enhanced UK Country Explorer with multi-hub cards. |
 <!-- Append new tasks above this line -->
