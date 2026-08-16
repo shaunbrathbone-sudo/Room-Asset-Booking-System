@@ -242,7 +242,7 @@ router.get('/offices/:slug', async (req, res) => {
     }
 });
 
-// ── 4. FLOOR LEVEL: Get Floor Map with Desks & Meeting Rooms ───
+// ── 4. FLOOR LEVEL: Get Floor Map with Desks, Rooms & Facilities ──
 router.get('/floors/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -267,6 +267,7 @@ router.get('/floors/:slug', async (req, res) => {
 
         const floor = floorResult.recordset[0];
 
+        // Desks
         const desksResult = await pool.request()
             .input('floorId', floor.id)
             .query(`
@@ -286,6 +287,7 @@ router.get('/floors/:slug', async (req, res) => {
                 ORDER BY d.code ASC
             `);
 
+        // Meeting Rooms
         const roomsResult = await pool.request()
             .input('floorId', floor.id)
             .query(`
@@ -295,6 +297,36 @@ router.get('/floors/:slug', async (req, res) => {
                 WHERE z.floor_id = @floorId
                 ORDER BY mr.name ASC
             `);
+
+        // Facility Areas & Interactive Photo Hotspots
+        const facResult = await pool.request()
+            .input('floorId', floor.id)
+            .query(`SELECT * FROM facility_areas WHERE floor_id = @floorId AND is_active = 1 ORDER BY name ASC`);
+
+        const facilitiesWithHotspots = [];
+        for (const fac of facResult.recordset) {
+            const hsRes = await pool.request()
+                .input('facId', fac.id)
+                .query(`SELECT * FROM facility_hotspots WHERE facility_id = @facId ORDER BY title ASC`);
+            
+            facilitiesWithHotspots.push({
+                id: fac.id,
+                name: fac.name,
+                type: fac.type,
+                photoUrl: fac.photo_url,
+                description: fac.description,
+                hotspots: hsRes.recordset.map((h: any) => ({
+                    id: h.id,
+                    title: h.title,
+                    itemName: h.item_name,
+                    description: h.description,
+                    instructions: h.instructions,
+                    posX: h.pos_x,
+                    posY: h.pos_y,
+                    icon: h.icon,
+                })),
+            });
+        }
 
         res.json({
             id: floor.id,
@@ -332,6 +364,7 @@ router.get('/floors/:slug', async (req, res) => {
                 requiresApproval: r.requires_approval === 1,
                 status: r.status,
             })),
+            facilities: facilitiesWithHotspots,
         });
     } catch (err) {
         console.error('Error fetching floor layout:', err);

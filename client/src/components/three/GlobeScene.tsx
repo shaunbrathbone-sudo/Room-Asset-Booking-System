@@ -243,7 +243,6 @@ const LeaderBeam = ({ start, end, color }: LeaderBeamProps) => {
 
     return (
         <mesh position={position} quaternion={quaternion}>
-            {/* Thicker, solid cylindrical 3D laser line */}
             <cylinderGeometry args={[0.16, 0.16, length, 8]} />
             <meshStandardMaterial
                 color={color}
@@ -359,20 +358,48 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
     );
 };
 
-/* ─── Focused Camera Rig ──────────────────────────────────── */
+/* ─── Device GPS Geolocation Camera Rig ──────────────────── */
 
-const FocusedCameraRig = ({ countries }: { countries: Country[] }) => {
+const DeviceGeolocationCameraRig = ({ countries }: { countries: Country[] }) => {
     const { camera } = useThree();
     const controlsRef = useRef<any>(null);
 
     useEffect(() => {
-        if (countries.length === 1) {
-            const targetCountry = countries[0];
-            const targetVec = latLngToVector3(targetCountry.latitude, targetCountry.longitude, 100);
-            
-            const camDistance = 165;
+        // Fallback target: first country or UK
+        const fallbackTarget = countries[0] || { latitude: 52.6339, longitude: -1.1360 };
+        const camDistance = 165;
+
+        if (typeof window !== 'undefined' && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+                    const userVec = latLngToVector3(userLat, userLng, 100);
+                    const camPos = userVec.clone().normalize().multiplyScalar(camDistance);
+
+                    camera.position.set(camPos.x, camPos.y, camPos.z);
+                    camera.lookAt(0, 0, 0);
+                    if (controlsRef.current) {
+                        controlsRef.current.target.set(0, 0, 0);
+                        controlsRef.current.update();
+                    }
+                },
+                (_error) => {
+                    // Graceful fallback to country target
+                    const targetVec = latLngToVector3(fallbackTarget.latitude, fallbackTarget.longitude, 100);
+                    const camPos = targetVec.clone().normalize().multiplyScalar(camDistance);
+                    camera.position.set(camPos.x, camPos.y, camPos.z);
+                    camera.lookAt(0, 0, 0);
+                    if (controlsRef.current) {
+                        controlsRef.current.target.set(0, 0, 0);
+                        controlsRef.current.update();
+                    }
+                },
+                { timeout: 4000, enableHighAccuracy: false }
+            );
+        } else {
+            const targetVec = latLngToVector3(fallbackTarget.latitude, fallbackTarget.longitude, 100);
             const camPos = targetVec.clone().normalize().multiplyScalar(camDistance);
-            
             camera.position.set(camPos.x, camPos.y, camPos.z);
             camera.lookAt(0, 0, 0);
             if (controlsRef.current) {
@@ -461,7 +488,7 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 <RealTimeEarthSphere />
             </Suspense>
 
-            {/* Individual Office Pins with Thicker 3D Leader Beams */}
+            {/* Individual Office Pins with Clean Gap Side Labels */}
             {allOffices.map((office) => (
                 <OfficePin
                     key={office.id}
@@ -470,7 +497,7 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 />
             ))}
 
-            <FocusedCameraRig countries={countries} />
+            <DeviceGeolocationCameraRig countries={countries} />
         </>
     );
 };

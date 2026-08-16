@@ -28,7 +28,27 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 };
 
 /**
- * Optional authentication — attaches user if token present, continues without if not.
+ * Role-Based Access Control middleware.
+ */
+export const requireRole = (...roles: string[]) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        if (!req.user) {
+            res.status(401).json({ error: 'Authentication required' });
+            return;
+        }
+        if (roles.length > 0 && !roles.includes(req.user.role)) {
+            // Allow super_admin by default or matching roles
+            if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+                res.status(403).json({ error: 'Forbidden: Insufficient privileges' });
+                return;
+            }
+        }
+        next();
+    };
+};
+
+/**
+ * Optional authentication - attaches user if token present, continues without if not.
  */
 export const optionalAuth = (req: Request, res: Response, next: NextFunction): void => {
     const authHeader = req.headers.authorization;
@@ -44,7 +64,7 @@ export const optionalAuth = (req: Request, res: Response, next: NextFunction): v
         const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
         req.user = decoded;
     } catch {
-        // Token invalid — continue without user context
+        // Token invalid - continue without user context
     }
 
     next();
