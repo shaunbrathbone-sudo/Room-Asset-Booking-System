@@ -1,11 +1,37 @@
 ﻿# Tasks Log
 
-- **2026-08-16**:
-  - **Feature Expansion & Visual Organisers**:
-    - **FEAT-0029**: Office Onboarding Wizard (`/admin/offices/new`) — 5-step provisioning workflow for hubs, building stacks, desks, and geocoded coordinates.
-    - **FEAT-0030**: Interactive Floor Plan & Facility Photo Hotspots Editor (`/admin/offices/[slug]/floor-editor`) — Workstation canvas layout editor, system ID mapper, and interactive photo hotspot tagger with modal instructions popups.
-    - **FEAT-0031**: Device GPS Geolocation Globe Orientation — 3D globe camera automatic device coordinate detection and orientation.
-  - **Security & Standards Audit**:
-    - Dual Database Schemas: Synced `facility_areas` and `facility_hotspots` tables to both SQLite (`schema.sql`) and MSSQL (`schema.mssql.sql`).
-    - Role-Based Access Control (RBAC): Enforced `AdminGuard` across all admin routes and API endpoints for `super_admin` (Top Admin) and `location_admin` (Local Admin).
-    - WCAG 2.2 Level AA & Theme Compatibility: Added keyboard `Escape` dismissal, `aria-modal`, visible focus rings, and high-contrast Light/Dark mode styling.
+- **2026-08-16 (Full Day Systemisation & Enterprise Feature Delivery)**:
+  - **FEAT-0025: London HQ Clerkenwell Expansion**:
+    - 2 complete floors, 28 workstations, 2 executive boardrooms, and 3D exploded building stack.
+  - **FEAT-0026: Recurring Hybrid Desk Booking Series Engine**:
+    - Multi-week recurring reservation engine with automatic conflict checks and series grouping.
+  - **FEAT-0027: Real-Time Astronomical Sunlit Day/Night Globe Shader**:
+    - Real-time solar declination and equation of time tracking exact live sunlight terminators on the 3D Earth globe.
+  - **FEAT-0028: Country Borders Overlay**:
+    - Balanced GeoJSON vector country boundary line overlays rendered on the 3D globe.
+  - **FEAT-0029: Office Onboarding Wizard**:
+    - 5-step guided wizard for facility administrators to provision hubs, building stacks, desks, and geocodes.
+  - **FEAT-0030: Interactive Floor Plan & Facility Photo Hotspots Editor**:
+    - Blueprint canvas desk arranger, system ID mapper, and interactive photo hotspot tagger with modal photo guides.
+  - **FEAT-0031: Device GPS Geolocation Camera Orientation**:
+    - Auto-detect user device coordinates and smoothly glide 3D camera to user's exact country/city.
+  - **FEAT-0032: Cloudfy Ecommerce India (Noida Tech Hub)**:
+    - 3rd Floor Corenthum Tower C, 24 desks, 2 meeting suites, Chai Bar & photo hotspots with induction guide.
+  - **FEAT-0033: Multi-Modal Commute Guidance per Hub**:
+    - 7-tab transit guide (Train, Metro, Bus, Car, Car Parks & EV, Cycling, Walking) for Leicester, London, and Noida.
+  - **FEAT-0034: 3-Day Live & Predictive Weather Forecast**:
+    - Meteorological forecast via Open-Meteo with commute weather advisories and live temperature chips.
+  - **FEAT-0035: Email Notification Engine & Template Studio**:
+    - Admin email builder for Confirmation, 24h Reminder, 15m Meeting Alert & Test Dispatcher.
+  - **FEAT-0036: Favourite Desks & 1-Click Repeat Booking**:
+    - Heart toggles in booking drawer and 1-click repeat reservation cards on bookings hub.
+  - **FEAT-0037: "Book Now" Real-Time Quick Booker**:
+    - Instant availability scanner for meeting rooms (free now/next hours) & open hot desks.
+  - **FEAT-0038: Permanent vs. Flexible Desk Allocation & User Schedule Engine**:
+    - Admin floor editor desk assignment, hybrid in-office day scheduler, and settings management.
+  - **FEAT-0039: "My Workspaces" System-Wide Rebrand & Grouped Dropdown Navigation**:
+    - Platform-wide rebrand to My Workspaces, organized dropdowns for Workspaces, Support, and Admin, and direct local office routing.
+  - **Standards & Best Practice Audit**:
+    - Dual Database Schemas: Synchronized all newly created tables in SQLite (`schema.sql`) and MSSQL (`schema.mssql.sql`).
+    - Full Production Build: Passed `next build` (18/18 static & dynamic routes compiled with 0 TypeScript/ESLint errors).
+    - Git Sync: All commits pushed and synced cleanly to GitHub repository (`origin/main`).
