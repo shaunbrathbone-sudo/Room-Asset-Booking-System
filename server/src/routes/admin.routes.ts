@@ -375,3 +375,120 @@ router.delete('/hotspots/:id', async (req, res) => {
 });
 
 export default router;
+// ─── EMAIL TEMPLATES MANAGEMENT ───────────────────────────────────────────────
+
+router.get('/email-templates', async (_req, res) => {
+    try {
+        const pool = await getPool();
+        const result = await pool.request().query(`
+            SELECT id, code, name, subject, preheader, body_html, category, is_active, updated_at
+            FROM email_templates
+            ORDER BY category ASC, name ASC
+        `);
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Error fetching email templates:', err);
+        res.status(500).json({ error: 'Failed to fetch email templates' });
+    }
+});
+
+router.get('/email-templates/:id', async (req, res) => {
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('id', req.params.id)
+            .query(`SELECT * FROM email_templates WHERE id = @id OR code = @id`);
+        if (!result.recordset?.length) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+        res.json(result.recordset[0]);
+    } catch (err) {
+        console.error('Error fetching email template:', err);
+        res.status(500).json({ error: 'Failed to fetch template' });
+    }
+});
+
+router.put('/email-templates/:id', async (req, res) => {
+    try {
+        const { subject, preheader, bodyHtml, isActive } = req.body;
+        const pool = await getPool();
+        await pool.request()
+            .input('id', req.params.id)
+            .input('subject', subject)
+            .input('preheader', preheader || '')
+            .input('bodyHtml', bodyHtml)
+            .input('isActive', isActive !== false ? 1 : 0)
+            .query(`
+                UPDATE email_templates
+                SET subject = @subject,
+                    preheader = @preheader,
+                    body_html = @bodyHtml,
+                    is_active = @isActive,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = @id OR code = @id
+            `);
+        res.json({ message: 'Email template updated successfully' });
+    } catch (err) {
+        console.error('Error updating email template:', err);
+        res.status(500).json({ error: 'Failed to update email template' });
+    }
+});
+
+router.post('/email-templates/test-send', async (req, res) => {
+    try {
+        const { templateCode, recipientEmail, customVariables } = req.body;
+        const pool = await getPool();
+        
+        const tmplRes = await pool.request()
+            .input('code', templateCode)
+            .query(`SELECT * FROM email_templates WHERE code = @code`);
+        
+        if (!tmplRes.recordset?.length) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+
+        const template = tmplRes.recordset[0];
+        const vars = {
+            userName: 'Shaun Rathbone',
+            officeName: '17 Friar Lane, Leicester Hub',
+            resourceName: 'Desk LEI-D04 (Creative Pod 1)',
+            floorName: '1st Floor Flexible Suite',
+            bookingTime: 'Tomorrow, 09:00 - 17:30 BST',
+            wifiDetails: 'Cloudfy / WCL (Key: FriarLane2026)',
+            commuteLink: 'http://localhost:3000/explore/united-kingdom/leicester-hub',
+            qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=BOOKING-17FRIAR-LEI-D04',
+            ...customVariables,
+        };
+
+        let renderedSubject = template.subject;
+        let renderedBody = template.body_html;
+
+        Object.entries(vars).forEach(([key, val]) => {
+            const regex = new RegExp(`{{${key}}}`, 'g');
+            renderedSubject = renderedSubject.replace(regex, String(val));
+            renderedBody = renderedBody.replace(regex, String(val));
+        });
+
+        // Log sent email
+        await pool.request()
+            .input('id', uuidv4())
+            .input('templateCode', templateCode)
+            .input('recipientEmail', recipientEmail || 'shaunrathbone@msn.com')
+            .input('subject', renderedSubject)
+            .input('status', 'sent')
+            .query(`
+                INSERT INTO email_logs (id, template_code, recipient_email, subject, status, sent_at)
+                VALUES (@id, @templateCode, @recipientEmail, @subject, @status, CURRENT_TIMESTAMP)
+            `);
+
+        res.json({
+            message: `Test email dispatched to ${recipientEmail || 'shaunrathbone@msn.com'}`,
+            renderedSubject,
+            renderedBody,
+            sentAt: new Date().toISOString(),
+        });
+    } catch (err) {
+        console.error('Error sending test email:', err);
+        res.status(500).json({ error: 'Failed to send test email' });
+    }
+});

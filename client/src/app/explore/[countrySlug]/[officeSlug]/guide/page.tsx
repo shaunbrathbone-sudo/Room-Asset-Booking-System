@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
+import { OfficeCommuteGuide } from '@/components/spatial/OfficeCommuteGuide';
+import { OfficeWeatherForecast } from '@/components/spatial/OfficeWeatherForecast';
 
 const getSectionIcon = (iconName: string) => {
     switch (iconName) {
@@ -31,7 +33,7 @@ const OfficeGuidePage = () => {
 
     const isLocationAdminOrSuper = user?.role === 'location_admin' || user?.role === 'super_admin';
 
-    const { data: guide, isLoading } = useQuery({
+    const { data: guide, isLoading: guideLoading } = useQuery({
         queryKey: ['officeGuide', officeSlug],
         queryFn: async () => {
             const { data } = await api.get(`/offices/${officeSlug}/guide`);
@@ -39,7 +41,15 @@ const OfficeGuidePage = () => {
         },
     });
 
-    if (isLoading) {
+    const { data: office, isLoading: officeLoading } = useQuery({
+        queryKey: ['office', officeSlug],
+        queryFn: async () => {
+            const { data } = await api.get(`/offices/${officeSlug}`);
+            return data;
+        },
+    });
+
+    if (guideLoading || officeLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -63,6 +73,10 @@ const OfficeGuidePage = () => {
     }
 
     const { content } = guide;
+    const officeLat = office?.latitude ?? (officeSlug.includes('india') ? 28.6280 : officeSlug.includes('london') ? 51.5235 : 52.6339);
+    const officeLng = office?.longitude ?? (officeSlug.includes('india') ? 77.3649 : officeSlug.includes('london') ? -0.1054 : -1.1360);
+    const officeCity = office?.city ?? (officeSlug.includes('india') ? 'Noida, Sector 62' : officeSlug.includes('london') ? 'London, Clerkenwell' : 'Leicester City Centre');
+    const officeFullAddress = office?.addressLine1 ? `${office.addressLine1}, ${office.city}, ${office.postcode}` : (officeSlug.includes('india') ? 'The Iconic Corenthum Tower C, Sector 62, Noida' : officeSlug.includes('london') ? 'Clerkenwell, London EC1M 6BY' : '17 Friar Lane, Leicester LE1 5RB');
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
@@ -84,7 +98,7 @@ const OfficeGuidePage = () => {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                         {isLocationAdminOrSuper && (
                             <Link
                                 href={`/admin/offices/${officeSlug}/guide`}
@@ -103,51 +117,66 @@ const OfficeGuidePage = () => {
                 </div>
             </div>
 
-            {/* Main Guide Content Grid */}
-            <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {content.sections?.map((section: any) => (
-                        <div
-                            key={section.id}
-                            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
-                        >
-                            {/* Blue Accent Top Border */}
-                            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-600" />
+            {/* Main Content Area */}
+            <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
+                {/* 3-Day Live Weather Forecast */}
+                <OfficeWeatherForecast
+                    latitude={officeLat}
+                    longitude={officeLng}
+                    cityName={officeCity}
+                />
 
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800">
-                                    {getSectionIcon(section.icon)}
-                                </div>
-                                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                                    {section.title}
-                                </h2>
-                            </div>
+                {/* Multi-Modal Commute & Transit Guide */}
+                <OfficeCommuteGuide
+                    officeSlug={officeSlug}
+                    officeName={office?.name || guide.title}
+                    address={officeFullAddress}
+                />
 
-                            <div className="space-y-4">
-                                {section.items?.map((item: any, idx: number) => (
-                                    <div key={idx} className="border-b border-slate-100 dark:border-slate-800/80 pb-3 last:border-0 last:pb-0">
-                                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
-                                            {item.label}
-                                        </h3>
-                                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                                            {item.value}
-                                        </p>
+                {/* Main Guide Content Grid */}
+                <div>
+                    <h2 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase tracking-wider text-xs">
+                        Building Facilities & Workspace Policies
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {content.sections?.map((section: any) => (
+                            <div
+                                key={section.id}
+                                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
+                            >
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-600" />
+
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800">
+                                        {getSectionIcon(section.icon)}
                                     </div>
-                                ))}
+                                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                                        {section.title}
+                                    </h3>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {section.items?.map((item: any, idx: number) => (
+                                        <div key={idx} className="border-b border-slate-100 dark:border-slate-800/80 pb-3 last:border-0 last:pb-0">
+                                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+                                                {item.label}
+                                            </h4>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                                                {item.value}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
 
                 {/* Footer Banner */}
                 {content.footerBanner && (
-                    <div className="mt-12 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white p-6 sm:p-8 text-center shadow-xl">
-                        <div className="inline-flex p-3 rounded-full bg-white/10 mb-3">
-                            <HeartHandshake className="w-6 h-6" />
-                        </div>
-                        <h3 className="text-xl font-black">{content.footerBanner}</h3>
-                        <p className="text-xs text-white/80 mt-1">
-                            Questions or need assistance? Reach out to Facilities or use the Feedback button.
+                    <div className="rounded-2xl bg-gradient-to-r from-blue-900 to-slate-900 border border-blue-800/60 p-6 text-center text-white shadow-xl">
+                        <p className="text-sm sm:text-base font-bold">
+                            {content.footerBanner}
                         </p>
                     </div>
                 )}

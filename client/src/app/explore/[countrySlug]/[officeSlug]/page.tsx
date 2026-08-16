@@ -1,11 +1,17 @@
 ﻿'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { BuildingStack } from '@/components/three/BuildingStack';
 import { api } from '@/lib/api';
-import { Building, MapPin, Clock, ArrowLeft, Layers, BookOpen } from 'lucide-react';
+import { 
+    Building, MapPin, Clock, ArrowLeft, 
+    Layers, BookOpen, Navigation, ThermometerSun, X 
+} from 'lucide-react';
+import { OfficeCommuteGuide } from '@/components/spatial/OfficeCommuteGuide';
+import { OfficeWeatherForecast } from '@/components/spatial/OfficeWeatherForecast';
 import type { Office, Floor } from '@/types/spatial';
 
 const OfficeStackPage = () => {
@@ -13,6 +19,8 @@ const OfficeStackPage = () => {
     const router = useRouter();
     const countrySlug = params.countrySlug as string;
     const officeSlug = params.officeSlug as string;
+
+    const [activeModal, setActiveModal] = useState<'commute' | 'weather' | null>(null);
 
     const { data: office, isLoading: officeLoading } = useQuery<Office>({
         queryKey: ['office', officeSlug],
@@ -57,6 +65,11 @@ const OfficeStackPage = () => {
         );
     }
 
+    const officeLat = office.latitude || (officeSlug.includes('india') ? 28.6280 : officeSlug.includes('london') ? 51.5235 : 52.6339);
+    const officeLng = office.longitude || (officeSlug.includes('india') ? 77.3649 : officeSlug.includes('london') ? -0.1054 : -1.1360);
+    const officeCity = office.city || (officeSlug.includes('india') ? 'Noida Sector 62' : officeSlug.includes('london') ? 'London Clerkenwell' : 'Leicester');
+    const fullAddress = `${office.addressLine1 || ''}, ${office.city || ''}, ${office.postcode || ''}`;
+
     return (
         <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
             {/* Top Navigation & Info Overlay */}
@@ -68,47 +81,67 @@ const OfficeStackPage = () => {
                     <ArrowLeft className="w-3.5 h-3.5" /> Back to Office Gallery
                 </Link>
 
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-xl">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        {office.tenants?.map((t) => (
-                            <span
-                                key={t.id}
-                                className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                            >
-                                {t.name}
-                            </span>
-                        ))}
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-xl space-y-4">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            {office.tenants?.map((t) => (
+                                <span
+                                    key={t.id}
+                                    className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                                >
+                                    {t.name}
+                                </span>
+                            ))}
+                        </div>
+
+                        <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                            {office.name}
+                        </h1>
+
+                        <div className="space-y-1.5 mt-2 text-xs text-slate-500 dark:text-slate-400">
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                <span>{office.addressLine1}, {office.city}, {office.postcode}</span>
+                            </div>
+                            {office.operationalHours && (
+                                <div className="flex items-center gap-2">
+                                    <Clock className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                    <span>{office.operationalHours}</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                        {office.name}
-                    </h1>
-
-                    <div className="space-y-1.5 mt-3 text-xs text-slate-500 dark:text-slate-400">
-                        <div className="flex items-center gap-2">
-                            <MapPin className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-                            <span>{office.addressLine1}, {office.city}, {office.postcode}</span>
-                        </div>
-                        {office.operationalHours && (
-                            <div className="flex items-center gap-2">
-                                <Clock className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-                                <span>{office.operationalHours}</span>
-                            </div>
-                        )}
+                    {/* Quick Access Action Bar: Commute, Weather & Full Guide */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                        <button
+                            type="button"
+                            onClick={() => setActiveModal('commute')}
+                            className="py-2 px-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 text-blue-700 dark:text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-blue-200 dark:border-blue-800/60 transition-all shadow-sm"
+                        >
+                            <Navigation className="w-3.5 h-3.5" /> Commute Guide
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveModal('weather')}
+                            className="py-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 text-amber-800 dark:text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-200 dark:border-amber-800/60 transition-all shadow-sm"
+                        >
+                            <ThermometerSun className="w-3.5 h-3.5 text-amber-500" /> 3-Day Weather
+                        </button>
                     </div>
 
                     {/* Prominent Office Induction & Welcome Guide CTA */}
-                    <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div>
                         <Link
                             href={`/explore/${countrySlug}/${officeSlug}/guide`}
                             className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-between shadow-md shadow-blue-500/20 group transition-all"
                         >
                             <span className="flex items-center gap-2">
                                 <BookOpen className="w-4 h-4 text-cyan-300" />
-                                <span>17 Friar Lane Welcome Guide</span>
+                                <span>Complete Welcome Guide</span>
                             </span>
                             <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono group-hover:translate-x-0.5 transition-transform">
-                                Read Info →
+                                View →
                             </span>
                         </Link>
                     </div>
@@ -125,17 +158,17 @@ const OfficeStackPage = () => {
                         <button
                             key={floor.id}
                             onClick={() => handleFloorSelect(floor)}
-                            className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-slate-200/60 dark:border-slate-700/60 transition-all text-left group"
+                            className="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-slate-200/60 dark:border-slate-700 transition-all flex items-center justify-between group shadow-sm"
                         >
                             <div>
-                                <p className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 block">
                                     {floor.name}
-                                </p>
-                                <p className="text-[10px] text-slate-400">
-                                    {floor.occupancyPercent}% Occupied
-                                </p>
+                                </span>
+                                <span className="text-[10px] text-slate-500">
+                                    Level {floor.floorNumber}
+                                </span>
                             </div>
-                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                            <span className="text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity font-bold">
                                 Enter →
                             </span>
                         </button>
@@ -143,20 +176,60 @@ const OfficeStackPage = () => {
                 </div>
             </div>
 
-            {/* Bottom Interaction Hint */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-slate-900/90 dark:bg-slate-950/90 text-white backdrop-blur-xl rounded-full px-6 py-2.5 border border-white/20 shadow-2xl">
-                <p className="text-xs font-semibold flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                    Hover floors to explode building stack • Click floor to view 2.5D desks
-                </p>
-            </div>
-
-            {/* 3D Exploded Building Stack Canvas */}
+            {/* 3D Interactive Building Stack */}
             <BuildingStack
-                officeName={office.name}
                 floors={floors}
+                officeName={office.name}
                 onFloorSelect={handleFloorSelect}
             />
+
+            {/* Interactive Commute Modal / Drawer */}
+            {activeModal === 'commute' && (
+                <div 
+                    role="dialog" 
+                    aria-modal="true" 
+                    className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+                >
+                    <div className="relative w-full max-w-3xl my-auto">
+                        <button
+                            onClick={() => setActiveModal(null)}
+                            className="absolute -top-3 -right-3 z-10 p-2 rounded-full bg-slate-900 text-white hover:bg-slate-800 border border-slate-700 shadow-xl"
+                            aria-label="Close commute guide"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                        <OfficeCommuteGuide
+                            officeSlug={officeSlug}
+                            officeName={office.name}
+                            address={fullAddress}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Interactive Weather Modal / Drawer */}
+            {activeModal === 'weather' && (
+                <div 
+                    role="dialog" 
+                    aria-modal="true" 
+                    className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+                >
+                    <div className="relative w-full max-w-xl my-auto">
+                        <button
+                            onClick={() => setActiveModal(null)}
+                            className="absolute -top-3 -right-3 z-10 p-2 rounded-full bg-slate-900 text-white hover:bg-slate-800 border border-slate-700 shadow-xl"
+                            aria-label="Close weather forecast"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                        <OfficeWeatherForecast
+                            latitude={officeLat}
+                            longitude={officeLng}
+                            cityName={officeCity}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
