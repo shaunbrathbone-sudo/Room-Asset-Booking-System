@@ -28,7 +28,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 };
 
 /**
- * Role-Based Access Control middleware.
+ * Role-Based Access Control middleware for Local & Top Admins.
  */
 export const requireRole = (...roles: string[]) => {
     return (req: Request, res: Response, next: NextFunction): void => {
@@ -36,14 +36,23 @@ export const requireRole = (...roles: string[]) => {
             res.status(401).json({ error: 'Authentication required' });
             return;
         }
-        if (roles.length > 0 && !roles.includes(req.user.role)) {
-            // Allow super_admin by default or matching roles
-            if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
-                res.status(403).json({ error: 'Forbidden: Insufficient privileges' });
-                return;
-            }
+
+        const userRole = req.user.role;
+        
+        // Super Admin always has universal estate access
+        if (userRole === 'super_admin') {
+            next();
+            return;
         }
-        next();
+
+        // Local Admins / Location Admins / Facility Managers
+        const allowedRoles = roles.length > 0 ? roles : ['super_admin', 'location_admin', 'facility_manager', 'admin'];
+        if (allowedRoles.includes(userRole)) {
+            next();
+            return;
+        }
+
+        res.status(403).json({ error: 'Forbidden: Requires Local or Top Admin privileges' });
     };
 };
 

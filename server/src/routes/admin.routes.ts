@@ -5,7 +5,7 @@ import { authenticate, requireRole } from '../middleware/auth';
 
 const router = Router();
 router.use(authenticate);
-router.use(requireRole('super_admin', 'facility_manager'));
+router.use(requireRole('super_admin', 'location_admin', 'facility_manager', 'admin'));
 
 // ── 1. DOMAIN WHITELIST MANAGEMENT ──────────────────────────────
 router.get('/domains', async (_req, res) => {

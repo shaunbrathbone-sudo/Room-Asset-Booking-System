@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { Coffee, Eye, Sparkles } from "lucide-react";
+import { Coffee, Eye, Sparkles, Settings2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/providers/AuthProvider";
 import { FloorPlan } from "@/components/three/FloorPlan";
 import { ScheduleDrawer } from "@/components/booking/ScheduleDrawer";
 import { FacilityHotspotModal, type FacilityArea } from "@/components/spatial/FacilityHotspotModal";
@@ -13,6 +14,7 @@ import type { Floor, Desk, MeetingRoom } from "@/types/spatial";
 const FloorPage = () => {
     const params = useParams();
     const router = useRouter();
+    const { user } = useAuth();
     const floorSlug = params.floorSlug as string;
     const countrySlug = params.countrySlug as string;
     const officeSlug = params.officeSlug as string;
@@ -21,6 +23,8 @@ const FloorPage = () => {
     const [resourceType, setResourceType] = useState<"desk" | "meeting_room">("desk");
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedFacility, setSelectedFacility] = useState<FacilityArea | null>(null);
+
+    const isLocalOrTopAdmin = user?.role === 'super_admin' || user?.role === 'location_admin';
 
     // Fetch floor data directly by slug
     const { data: floorPlan, isLoading } = useQuery<any>({
@@ -60,6 +64,17 @@ const FloorPage = () => {
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 uppercase tracking-wider">
                         {floorPlan.officeName || 'Workplace'}
                     </span>
+
+                    {/* Edit Floor Organiser Shortcut for Local & Top Admins */}
+                    {isLocalOrTopAdmin && (
+                        <button
+                            onClick={() => router.push(`/admin/offices/${officeSlug}/floor-editor`)}
+                            className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1 shadow-sm hover:scale-105 transition-transform"
+                        >
+                            <Settings2 className="w-3 h-3" /> Edit Floor
+                        </button>
+                    )}
+
                     <button
                         onClick={() => router.push(`/explore/${countrySlug}/${officeSlug}/guide`)}
                         className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950 flex items-center gap-1 shadow-sm hover:scale-105 transition-transform"

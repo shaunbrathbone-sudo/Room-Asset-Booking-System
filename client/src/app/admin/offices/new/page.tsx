@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { AdminGuard } from '@/components/auth/AdminGuard';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -90,6 +91,7 @@ export default function NewOfficeWizardPage() {
     ];
 
     return (
+        <AdminGuard>
         <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
             {/* Header */}
             <div>
@@ -478,5 +480,6 @@ export default function NewOfficeWizardPage() {
                 )}
             </div>
         </div>
+            </AdminGuard>
     );
 }
