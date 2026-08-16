@@ -13,6 +13,10 @@ import searchRoutes from './routes/search.routes';
 import userRoutes from './routes/user.routes';
 import bookingRoutes from './routes/booking.routes';
 import assetRoutes from './routes/asset.routes';
+import feedbackRoutes from './routes/feedback.routes';
+import bugRoutes from './routes/bug.routes';
+import adminRoutes from './routes/admin.routes';
+import kioskRoutes from './routes/kiosk.routes';
 
 // Services
 import { initGhostBookingScheduler } from './services/ghostBooking.service';
@@ -43,6 +47,10 @@ app.use('/api/search', searchRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/bugs', bugRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/kiosk', kioskRoutes);
 
 // ── Health Check ────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -86,8 +94,6 @@ let ghostScheduler: NodeJS.Timeout | null = null;
 const start = async (): Promise<void> => {
     try {
         await applySchema();
-
-        // Start ghost booking scheduler (checks every 60s)
         ghostScheduler = initGhostBookingScheduler(60000);
 
         app.listen(PORT, () => {

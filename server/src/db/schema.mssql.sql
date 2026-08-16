@@ -291,3 +291,80 @@ CREATE INDEX IX_assets_office ON assets(office_id);
 CREATE INDEX IX_assets_category ON assets(category);
 CREATE INDEX IX_bookings_cancel_token ON bookings(cancel_token);
 CREATE INDEX IX_bookings_checkin_token ON bookings(checkin_token);
+
+-- ============================================================
+-- Phase 3 Database Schema Additions
+-- ============================================================
+
+-- ──────────────────────────────────────────────────────────────
+-- FEATURE_REQUESTS — Employee suggestions & Community Roadmap
+-- ──────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'feature_requests')
+CREATE TABLE feature_requests (
+    id                  UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    user_id             UNIQUEIDENTIFIER NOT NULL REFERENCES users(id),
+    title               NVARCHAR(200)    NOT NULL,
+    problem_statement   NVARCHAR(MAX)    NOT NULL,
+    business_impact     NVARCHAR(MAX)    NOT NULL,
+    category            NVARCHAR(50)     NOT NULL DEFAULT 'general',
+    status              NVARCHAR(30)     NOT NULL DEFAULT 'pending_moderation'
+                        CHECK (status IN ('pending_moderation', 'approved', 'rejected', 'planned', 'in_development', 'completed')),
+    moderation_notes    NVARCHAR(1000)   NULL,
+    upvotes_count       INT              NOT NULL DEFAULT 0,
+    created_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+    updated_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE()
+);
+
+-- ──────────────────────────────────────────────────────────────
+-- FEATURE_UPVOTES — Strict 1 vote per employee limit
+-- ──────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'feature_upvotes')
+CREATE TABLE feature_upvotes (
+    feature_id          UNIQUEIDENTIFIER NOT NULL REFERENCES feature_requests(id) ON DELETE CASCADE,
+    user_id             UNIQUEIDENTIFIER NOT NULL REFERENCES users(id),
+    created_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+    PRIMARY KEY (feature_id, user_id)
+);
+
+-- ──────────────────────────────────────────────────────────────
+-- BUG_TICKETS — Telemetry-attached issue tracker with multipliers
+-- ──────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bug_tickets')
+CREATE TABLE bug_tickets (
+    id                  UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    user_id             UNIQUEIDENTIFIER NOT NULL REFERENCES users(id),
+    office_id           UNIQUEIDENTIFIER NULL REFERENCES offices(id),
+    parent_bug_id       UNIQUEIDENTIFIER NULL REFERENCES bug_tickets(id), -- For duplicates linked to parent
+    title               NVARCHAR(200)    NOT NULL,
+    description         NVARCHAR(MAX)    NOT NULL,
+    route_path          NVARCHAR(500)    NULL,
+    object_id           NVARCHAR(100)    NULL, -- e.g. Desk code or Room ID
+    three_coords        NVARCHAR(200)    NULL, -- 3D x,y,z
+    browser_info        NVARCHAR(500)    NULL,
+    os_info             NVARCHAR(200)    NULL,
+    viewport_size       NVARCHAR(100)    NULL,
+    console_logs        NVARCHAR(MAX)    NULL,
+    multiplier_count    INT              NOT NULL DEFAULT 1,
+    status              NVARCHAR(30)     NOT NULL DEFAULT 'open'
+                        CHECK (status IN ('open', 'triaged', 'in_progress', 'resolved', 'closed')),
+    resolution_notes    NVARCHAR(1000)   NULL,
+    created_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+    updated_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE()
+);
+
+-- ──────────────────────────────────────────────────────────────
+-- BUG_SUBSCRIBERS — "I Have This Issue Too" subscribers
+-- ──────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bug_subscribers')
+CREATE TABLE bug_subscribers (
+    bug_id              UNIQUEIDENTIFIER NOT NULL REFERENCES bug_tickets(id) ON DELETE CASCADE,
+    user_id             UNIQUEIDENTIFIER NOT NULL REFERENCES users(id),
+    created_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+    PRIMARY KEY (bug_id, user_id)
+);
+
+CREATE INDEX IX_feature_requests_status ON feature_requests(status);
+CREATE INDEX IX_feature_requests_upvotes ON feature_requests(upvotes_count DESC);
+CREATE INDEX IX_bug_tickets_office ON bug_tickets(office_id);
+CREATE INDEX IX_bug_tickets_status ON bug_tickets(status);
+CREATE INDEX IX_bug_tickets_parent ON bug_tickets(parent_bug_id);

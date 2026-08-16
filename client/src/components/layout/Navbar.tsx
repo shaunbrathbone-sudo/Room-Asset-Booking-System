@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Globe, ChevronRight, Sun, Moon, LogOut, Settings, Calendar, Car, Menu, X } from 'lucide-react';
+import { Globe, ChevronRight, Sun, Moon, LogOut, Settings, Calendar, Car, Sparkles, Bug, ShieldCheck } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { UniversalSearch } from '@/components/search/UniversalSearch';
 import { useAuth } from '@/providers/AuthProvider';
@@ -34,6 +34,7 @@ export const Navbar = () => {
     const { theme, setTheme } = useTheme();
     const { user, isAuthenticated, logout } = useAuth();
     const breadcrumbs = parseBreadcrumbs(pathname);
+    const isApproverOrAdmin = user?.role === 'approver' || user?.role === 'location_admin' || user?.role === 'super_admin';
 
     return (
         <nav className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800" role="navigation" aria-label="Main navigation">
@@ -80,9 +81,41 @@ export const Navbar = () => {
                             >
                                 <Calendar className="w-4 h-4" /> My Bookings
                             </Link>
+                            <Link
+                                href="/feedback/features"
+                                className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                                    pathname.startsWith('/feedback/features')
+                                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold'
+                                        : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400'
+                                }`}
+                            >
+                                <Sparkles className="w-4 h-4" /> Roadmap
+                            </Link>
+                            <Link
+                                href="/feedback/bugs"
+                                className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                                    pathname.startsWith('/feedback/bugs')
+                                        ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-semibold'
+                                        : 'text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400'
+                                }`}
+                            >
+                                <Bug className="w-4 h-4" /> Bugs
+                            </Link>
+                            {isApproverOrAdmin && (
+                                <Link
+                                    href="/admin/approvals"
+                                    className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                                        pathname.startsWith('/admin/approvals')
+                                            ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-semibold'
+                                            : 'text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400'
+                                    }`}
+                                >
+                                    <ShieldCheck className="w-4 h-4" /> Approvals
+                                </Link>
+                            )}
                         </div>
 
-                        {/* Spatial Breadcrumbs (Mobile / Explore view) */}
+                        {/* Spatial Breadcrumbs */}
                         {breadcrumbs.length > 1 && (
                             <div className="hidden xl:flex items-center gap-1 text-xs pl-4 border-l border-slate-200 dark:border-slate-800" aria-label="Breadcrumb">
                                 {breadcrumbs.map((crumb, i) => (
