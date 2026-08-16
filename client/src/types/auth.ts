@@ -5,6 +5,8 @@
     lastName: string;
     role: 'employee' | 'approver' | 'location_admin' | 'super_admin';
     tenantId: string | null;
+    tenantName?: string | null;
+    avatarUrl?: string | null;
 }
 
 export interface TokenPair {

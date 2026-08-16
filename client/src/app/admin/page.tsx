@@ -45,14 +45,6 @@ const AdminHubPage = () => {
         },
     });
 
-    const { data: offices = [] } = useQuery({
-        queryKey: ['adminOffices'],
-        queryFn: async () => {
-            const { data } = await api.get('/offices/leicester-hub');
-            return [data];
-        },
-    });
-
     // Mutations
     const addDomainMutation = useMutation({
         mutationFn: async () => {
@@ -114,7 +106,7 @@ const AdminHubPage = () => {
             <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-                        <Shield className="w-8 h-8 text-blue-600" /> SpaceBook Administration Hub
+                        <Shield className="w-8 h-8 text-blue-600" /> Cloudfy Administration Hub
                     </h1>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                         Configure corporate registration domains, employee access roles, estate guides, and booking governance rules.
@@ -292,7 +284,7 @@ const AdminHubPage = () => {
                         <table className="w-full text-left text-xs">
                             <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 uppercase font-bold text-[10px] tracking-wider">
                                 <tr>
-                                    <th className="px-6 py-3.5">User</th>
+                                    <th className="px-6 py-3.5">Employee</th>
                                     <th className="px-6 py-3.5">Tenant</th>
                                     <th className="px-6 py-3.5">Access Role</th>
                                     <th className="px-6 py-3.5">Reservations</th>
@@ -303,9 +295,18 @@ const AdminHubPage = () => {
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
                                 {users.map((u: any) => (
                                     <tr key={u.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                                        <td className="px-6 py-4">
-                                            <p className="font-bold text-slate-900 dark:text-white">{u.fullName}</p>
-                                            <p className="text-[11px] text-slate-400 font-mono">{u.email}</p>
+                                        <td className="px-6 py-4 flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-blue-500/20 shadow-sm flex-shrink-0">
+                                                {u.avatarUrl ? (
+                                                    <img src={u.avatarUrl} alt={u.fullName} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span>{u.firstName[0]}{u.lastName[0]}</span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-900 dark:text-white">{u.fullName}</p>
+                                                <p className="text-[11px] text-slate-400 font-mono">{u.email}</p>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">{u.tenantName}</td>
                                         <td className="px-6 py-4">

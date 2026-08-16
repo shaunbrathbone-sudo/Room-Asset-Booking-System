@@ -101,6 +101,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
             lastName,
             role: 'employee',
             tenantId: matchedTenantId,
+            avatarUrl: null as any,
         };
 
         const tokens = generateTokens(userPayload);
@@ -180,6 +181,7 @@ router.post('/sso/microsoft', async (req: Request, res: Response): Promise<void>
                 last_name: lastName,
                 role: 'employee',
                 tenant_id: tenantId,
+                avatar_url: null,
             };
         }
 
@@ -190,6 +192,7 @@ router.post('/sso/microsoft', async (req: Request, res: Response): Promise<void>
             lastName: userRow.last_name,
             role: userRow.role,
             tenantId: userRow.tenant_id,
+            avatarUrl: userRow.avatar_url || null,
         };
 
         const tokens = generateTokens(userPayload);
@@ -235,6 +238,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
             lastName: user.last_name,
             role: user.role,
             tenantId: user.tenant_id,
+            avatarUrl: user.avatar_url || null,
         };
 
         const tokens = generateTokens(userPayload);
@@ -274,6 +278,7 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
             lastName: user.last_name,
             role: user.role,
             tenantId: user.tenant_id,
+            avatarUrl: user.avatar_url || null,
         };
 
         const tokens = generateTokens(userPayload);
@@ -291,9 +296,11 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
             .input('id', req.user!.id)
             .query(`
                 SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.tenant_id,
-                       u.avatar_url, t.name AS tenant_name
+                       u.avatar_url, t.name AS tenant_name,
+                       p.home_office_id, p.default_view
                 FROM users u
                 LEFT JOIN tenants t ON t.id = u.tenant_id
+                LEFT JOIN user_preferences p ON p.user_id = u.id
                 WHERE u.id = @id
             `);
 
@@ -312,9 +319,84 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
             tenantId: row.tenant_id,
             tenantName: row.tenant_name,
             avatarUrl: row.avatar_url,
+            homeOfficeId: row.home_office_id,
+            defaultView: row.default_view,
         });
     } catch (err) {
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ── Update Current User Profile & Photo Avatar ──────────────
+router.put('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { firstName, lastName, avatarUrl, homeOfficeId, defaultView } = req.body;
+        const pool = await getPool();
+        const userId = req.user!.id;
+
+        if (firstName || lastName || avatarUrl !== undefined) {
+            await pool.request()
+                .input('id', userId)
+                .input('firstName', firstName)
+                .input('lastName', lastName)
+                .input('avatarUrl', avatarUrl || null)
+                .query(`
+                    UPDATE users
+                    SET first_name = COALESCE(@firstName, first_name),
+                        last_name = COALESCE(@lastName, last_name),
+                        avatar_url = @avatarUrl,
+                        updated_at = datetime('now')
+                    WHERE id = @id
+                `);
+        }
+
+        if (homeOfficeId || defaultView) {
+            await pool.request()
+                .input('userId', userId)
+                .input('homeOfficeId', homeOfficeId || null)
+                .input('defaultView', defaultView || 'globe')
+                .query(`
+                    INSERT INTO user_preferences (user_id, home_office_id, default_view, updated_at)
+                    VALUES (@userId, @homeOfficeId, @defaultView, datetime('now'))
+                    ON CONFLICT(user_id) DO UPDATE SET
+                        home_office_id = COALESCE(@homeOfficeId, home_office_id),
+                        default_view = COALESCE(@defaultView, default_view),
+                        updated_at = datetime('now')
+                `);
+        }
+
+        // Fetch updated user payload
+        const updated = await pool.request()
+            .input('id', userId)
+            .query(`
+                SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.tenant_id,
+                       u.avatar_url, t.name AS tenant_name
+                FROM users u
+                LEFT JOIN tenants t ON t.id = u.tenant_id
+                WHERE u.id = @id
+            `);
+
+        const row = updated.recordset[0];
+        const userPayload: UserPayload = {
+            id: row.id,
+            email: row.email,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            role: row.role,
+            tenantId: row.tenant_id,
+            avatarUrl: row.avatar_url,
+        };
+
+        const tokens = generateTokens(userPayload);
+
+        res.json({
+            message: 'Profile updated successfully',
+            user: userPayload,
+            tokens,
+        });
+    } catch (err) {
+        console.error('Error updating user profile:', err);
+        res.status(500).json({ error: 'Internal server error updating profile' });
     }
 });
 

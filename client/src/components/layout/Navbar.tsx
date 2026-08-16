@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Globe, ChevronRight, Sun, Moon, LogOut, Settings, Calendar, Car, Sparkles, Bug, ShieldCheck, BarChart3, Shield } from 'lucide-react';
+import { 
+    Globe, ChevronRight, Sun, Moon, LogOut, Settings, 
+    Calendar, Car, Sparkles, Bug, ShieldCheck, BarChart3, Shield, User as UserIcon 
+} from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { UniversalSearch } from '@/components/search/UniversalSearch';
 import { useAuth } from '@/providers/AuthProvider';
@@ -43,11 +46,18 @@ export const Navbar = () => {
                 <div className="flex items-center justify-between h-16">
                     {/* Logo & Navigation Links */}
                     <div className="flex items-center gap-6 min-w-0">
-                        <Link href="/explore" className="flex items-center gap-2.5 flex-shrink-0" aria-label="Go to globe view">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20">
+                        <Link href="/explore" className="flex items-center gap-2.5 flex-shrink-0 group" aria-label="Go to workspace explorer">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
                                 <Globe className="w-5 h-5 text-white" />
                             </div>
-                            <span className="hidden sm:block font-bold text-base tracking-tight text-slate-900 dark:text-white">SpaceBook 3D</span>
+                            <div className="hidden sm:flex flex-col">
+                                <span className="font-black text-base tracking-tight text-slate-900 dark:text-white leading-none">
+                                    Cloudfy <span className="text-blue-600 dark:text-cyan-400 font-bold">Workspaces</span>
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                                    3D Asset & Desk System
+                                </span>
+                            </div>
                         </Link>
 
                         {/* Top Nav Links */}
@@ -177,30 +187,41 @@ export const Navbar = () => {
                             {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         </button>
 
-                        {/* User Profile / Menu */}
+                        {/* User Profile / Menu with Avatar */}
                         {isAuthenticated && user ? (
                             <div className="flex items-center gap-2">
                                 <Link
                                     href="/settings"
-                                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
-                                    aria-label="Settings"
+                                    className="flex items-center gap-2 p-1.5 pr-3 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                                    aria-label="Profile Settings"
                                 >
-                                    <Settings className="w-5 h-5" />
-                                </Link>
-                                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800">
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                        {user.firstName[0]}{user.lastName[0]}
+                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-blue-500/20 shadow-sm flex-shrink-0">
+                                        {user.avatarUrl ? (
+                                            <img
+                                                src={user.avatarUrl}
+                                                alt={`${user.firstName} ${user.lastName}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <span>{user.firstName[0]}{user.lastName[0]}</span>
+                                        )}
                                     </div>
-                                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                        {user.firstName}
-                                    </span>
-                                </div>
+                                    <div className="hidden sm:flex flex-col text-left">
+                                        <span className="text-xs font-bold text-slate-900 dark:text-white leading-none">
+                                            {user.firstName}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-medium capitalize mt-0.5">
+                                            {user.role.replace('_', ' ')}
+                                        </span>
+                                    </div>
+                                </Link>
+
                                 <button
                                     onClick={logout}
-                                    className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                                    className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                                     aria-label="Log out"
                                 >
-                                    <LogOut className="w-5 h-5" />
+                                    <LogOut className="w-4 h-4" />
                                 </button>
                             </div>
                         ) : (

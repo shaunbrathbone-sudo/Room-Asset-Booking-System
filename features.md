@@ -30,4 +30,6 @@ Whenever a new feature is created, add an entry here with a unique sequential ID
 | FEAT-0019 | 2026-08-16 | Office Guide Live CMS & Admin Editor | Full admin CMS (/admin/offices/[slug]/guide) to add, update, and publish induction booklet topics and guidelines. | Completed |
 | FEAT-0020 | 2026-08-16 | Centralized Administration Hub | Unified admin dashboard (/admin) with Domain Whitelisting, User Directory & RBAC, Estate CMS, and System Configs. | Completed |
 | FEAT-0021 | 2026-08-16 | Corporate Domain Whitelist Gate & Microsoft SSO | Domain security gate blocking unknown email domains on registration (/register) and Microsoft 365 Single Sign-On. | Completed |
+| FEAT-0022 | 2026-08-16 | Cloudfy Corporate Rebranding | Official Cloudfy Workspaces branding across navbar headers, explorer titles, footers, and metadata. | Completed |
+| FEAT-0023 | 2026-08-16 | Employee Profile Photo & Avatar System | Upload personal photo from device or choose corporate preset (/settings) with live display in Navbar and User Directory. | Completed |
 <!-- Append new features above this line -->

@@ -15,4 +15,5 @@ A record of larger tasks completed across the **Room-Asset-Booking-System** proj
 | 2026-08-16 | Analytics Dashboard & Global Feedback FAB | Built Space Utilization & Workplace Analytics (/admin/analytics) and Global Floating Feedback FAB (FeedbackFAB.tsx). |
 | 2026-08-16 | Office Welcome Guide & Admin CMS | Implemented the 17 Friar Lane Induction & Welcome Guide (/explore/united-kingdom/leicester-hub/guide) and Admin Content Manager (/admin/offices/[slug]/guide). |
 | 2026-08-16 | Centralized Admin Panel & Domain-Gated Registration | Built unified Admin Hub (/admin) with Domain Whitelist management, User Directory & RBAC, Estate CMS, and System Configs; built Self-Service Registration (/register) with corporate email domain whitelist gate and Microsoft 365 Single Sign-On (SSO) integration. |
+| 2026-08-16 | Cloudfy Branding & Profile Photo Avatar System | Rebranded system to Cloudfy Workspaces; built Profile photo uploader (device upload + presets) in /settings with live instant avatar rendering in the Navbar, User Directory, and Reservation system. |
 <!-- Append new tasks above this line -->
