@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
     User, Camera, Trash2, CheckCircle2, Shield, Building, 
-    Save, Sparkles, Upload, Image as ImageIcon, MapPin, Eye
+    Save, Sparkles, Upload, Image as ImageIcon, MapPin, Eye, Lock, Calendar
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
@@ -29,6 +29,42 @@ const SettingsPage = () => {
     const [homeOfficeId, setHomeOfficeId] = useState('55555555-5555-5555-5555-555555555555');
     const [defaultView, setDefaultView] = useState('globe');
     const [savedMsg, setSavedMsg] = useState<string | null>(null);
+    const [allocatedDays, setAllocatedDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+    const [deskScheduleMsg, setDeskScheduleMsg] = useState<string | null>(null);
+
+    // Fetch user's allocated permanent desk
+    const { data: allocatedDeskData } = useQuery({
+        queryKey: ['myAllocatedDesk'],
+        queryFn: async () => {
+            const { data } = await api.get('/users/my-allocated-desk');
+            return data;
+        },
+    });
+
+    useEffect(() => {
+        if (allocatedDeskData?.desk?.assignedDays) {
+            setAllocatedDays(allocatedDeskData.desk.assignedDays);
+        }
+    }, [allocatedDeskData]);
+
+    const updateDeskDaysMutation = useMutation({
+        mutationFn: async (days: string[]) => {
+            await api.put('/users/my-allocated-desk/days', { assignedDays: days });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['myAllocatedDesk'] });
+            setDeskScheduleMsg('In-office schedule saved!');
+            setTimeout(() => setDeskScheduleMsg(null), 3000);
+        },
+    });
+
+    const toggleDeskDay = (day: string) => {
+        const updated = allocatedDays.includes(day)
+            ? allocatedDays.filter((d) => d !== day)
+            : [...allocatedDays, day];
+        setAllocatedDays(updated);
+        updateDeskDaysMutation.mutate(updated);
+    };
 
     // Fetch user profile from API
     const { data: profile } = useQuery({
@@ -287,6 +323,70 @@ const SettingsPage = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* 4. Allocated Permanent Desk & Schedule */}
+                {allocatedDeskData?.hasAllocatedDesk && allocatedDeskData.desk && (
+                    <div className="bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent dark:from-indigo-950/30 dark:via-indigo-950/10 rounded-2xl border border-indigo-200 dark:border-indigo-800/60 p-6 sm:p-8 shadow-sm space-y-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-200/60 dark:border-indigo-800/40 pb-3">
+                            <div>
+                                <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-cyan-400 flex items-center gap-1">
+                                    <Lock className="w-3.5 h-3.5 text-indigo-500" /> Dedicated Workstation
+                                </span>
+                                <h2 className="text-base font-black text-slate-900 dark:text-white">
+                                    My Allocated Permanent Desk & Schedule
+                                </h2>
+                            </div>
+
+                            {deskScheduleMsg && (
+                                <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> {deskScheduleMsg}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 space-y-1">
+                                <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                                    {allocatedDeskData.desk.code}
+                                </span>
+                                <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+                                    {allocatedDeskData.desk.label || 'Dedicated Station'}
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    {allocatedDeskData.desk.office_name} • {allocatedDeskData.desk.floor_name}
+                                </p>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 space-y-2">
+                                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                    <Calendar className="w-3.5 h-3.5 text-indigo-500" /> My In-Office Days (Click to toggle)
+                                </label>
+                                <div className="flex items-center gap-1.5">
+                                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day) => {
+                                        const isActive = allocatedDays.includes(day);
+                                        return (
+                                            <button
+                                                key={day}
+                                                type="button"
+                                                onClick={() => toggleDeskDay(day)}
+                                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                    isActive
+                                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600'
+                                                }`}
+                                            >
+                                                {day}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <span className="text-[10px] text-slate-400 block">
+                                    Your desk will be automatically freed for team hot-desking on days you are out.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Save Button */}
                 <div className="flex justify-end">

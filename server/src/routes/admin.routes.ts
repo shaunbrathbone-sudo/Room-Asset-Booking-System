@@ -492,3 +492,66 @@ router.post('/email-templates/test-send', async (req, res) => {
         res.status(500).json({ error: 'Failed to send test email' });
     }
 });
+
+// ─── DESK ALLOCATION (PERMANENT VS FLEXIBLE) ─────────────────────────────────
+
+router.put('/desks/:id/allocation', async (req, res) => {
+    try {
+        const { deskType, assignedUserId, assignedUserName, assignedDays } = req.body;
+        const pool = await getPool();
+
+        const daysJson = Array.isArray(assignedDays) ? JSON.stringify(assignedDays) : (assignedDays || '["Mon","Tue","Wed","Thu","Fri"]');
+
+        await pool.request()
+            .input('id', req.params.id)
+            .input('deskType', deskType || 'flexible')
+            .input('assignedUserId', deskType === 'permanent' ? (assignedUserId || null) : null)
+            .input('assignedUserName', deskType === 'permanent' ? (assignedUserName || null) : null)
+            .input('assignedDays', deskType === 'permanent' ? daysJson : null)
+            .query(`
+                UPDATE desks
+                SET desk_type = @deskType,
+                    assigned_user_id = @assignedUserId,
+                    assigned_user_name = @assignedUserName,
+                    assigned_days = @assignedDays
+                WHERE id = @id
+            `);
+
+        res.json({ message: 'Desk allocation updated successfully' });
+    } catch (err) {
+        console.error('Error updating desk allocation:', err);
+        res.status(500).json({ error: 'Failed to update desk allocation' });
+    }
+});
+
+
+// ─── DESK ALLOCATION (PERMANENT VS FLEXIBLE) ─────────────────────────────────
+
+router.put('/desks/:id/allocation', async (req, res) => {
+    try {
+        const { deskType, assignedUserId, assignedUserName, assignedDays } = req.body;
+        const pool = await getPool();
+
+        const daysJson = Array.isArray(assignedDays) ? JSON.stringify(assignedDays) : (assignedDays || '["Mon","Tue","Wed","Thu","Fri"]');
+
+        await pool.request()
+            .input('id', req.params.id)
+            .input('deskType', deskType || 'flexible')
+            .input('assignedUserId', deskType === 'permanent' ? (assignedUserId || null) : null)
+            .input('assignedUserName', deskType === 'permanent' ? (assignedUserName || null) : null)
+            .input('assignedDays', deskType === 'permanent' ? daysJson : null)
+            .query(`
+                UPDATE desks
+                SET desk_type = @deskType,
+                    assigned_user_id = @assignedUserId,
+                    assigned_user_name = @assignedUserName,
+                    assigned_days = @assignedDays
+                WHERE id = @id
+            `);
+
+        res.json({ message: 'Desk allocation updated successfully' });
+    } catch (err) {
+        console.error('Error updating desk allocation:', err);
+        res.status(500).json({ error: 'Failed to update desk allocation' });
+    }
+});

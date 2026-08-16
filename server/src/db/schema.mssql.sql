@@ -411,3 +411,8 @@ BEGIN
         CONSTRAINT [UQ_user_desk_favourite] UNIQUE ([user_id], [desk_id])
     );
 END
+-- Desk Permanent vs Flexible Allocation Columns
+-- desk_type: 'flexible' | 'permanent'
+-- assigned_user_id: user UUID if permanent
+-- assigned_user_name: display name
+-- assigned_days: JSON array e.g. ["Mon","Tue","Wed","Thu","Fri"]

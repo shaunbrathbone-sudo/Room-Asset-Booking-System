@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Compass, Monitor, Move, Save, CheckCircle2 } from 'lucide-react';
+import { Compass, Monitor, Move, Save, CheckCircle2, User, Calendar, Lock, Unlock } from 'lucide-react';
 import { api } from '@/lib/api';
 
 export interface DeskNode {
@@ -16,6 +16,10 @@ export interface DeskNode {
     isBookable?: boolean;
     equipment_tags?: string | null;
     equipmentTags?: string | null;
+    desk_type?: 'flexible' | 'permanent';
+    assigned_user_id?: string | null;
+    assigned_user_name?: string | null;
+    assigned_days?: string | null;
 }
 
 export interface FloorCanvasData {
@@ -31,12 +35,25 @@ interface DeskLayoutCanvasProps {
     onSaved: () => void;
 }
 
+const ALL_WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
 export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
     const [selectedDesk, setSelectedDesk] = useState<DeskNode | null>(null);
     const [feedback, setFeedback] = useState<string | null>(null);
 
+    const parseDays = (daysStr?: string | null): string[] => {
+        if (!daysStr) return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        try {
+            const parsed = JSON.parse(daysStr);
+            return Array.isArray(parsed) ? parsed : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        } catch {
+            return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        }
+    };
+
     const saveMutation = useMutation({
         mutationFn: async (desk: DeskNode) => {
+            // Save layout position & labels
             await api.post(`/admin/desks/${desk.id}/layout`, {
                 x: desk.x,
                 y: desk.y,
@@ -44,13 +61,35 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
                 equipmentTags: desk.equipment_tags || desk.equipmentTags,
                 isBookable: desk.is_bookable !== 0 && desk.isBookable !== false,
             });
+
+            // Save Permanent vs Flexible allocation
+            await api.put(`/admin/desks/${desk.id}/allocation`, {
+                deskType: desk.desk_type || 'flexible',
+                assignedUserName: desk.assigned_user_name,
+                assignedDays: desk.assigned_days,
+            });
         },
         onSuccess: () => {
-            setFeedback('Desk layout saved!');
+            setFeedback('Desk layout & allocation saved!');
             onSaved();
             setTimeout(() => setFeedback(null), 2500);
         },
     });
+
+    const toggleDay = (day: string) => {
+        if (!selectedDesk) return;
+        const currentDays = parseDays(selectedDesk.assigned_days);
+        let updated: string[];
+        if (currentDays.includes(day)) {
+            updated = currentDays.filter((d) => d !== day);
+        } else {
+            updated = [...currentDays, day];
+        }
+        setSelectedDesk({
+            ...selectedDesk,
+            assigned_days: JSON.stringify(updated),
+        });
+    };
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -60,11 +99,11 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
                     <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                         <Compass className="w-5 h-5 text-blue-600 dark:text-cyan-400" /> Interactive Desk Layout Canvas
                     </h3>
-                    <span className="text-xs text-slate-400 font-semibold">Click workstation node to edit properties</span>
+                    <span className="text-xs text-slate-400 font-semibold">Click workstation node to edit allocation & position</span>
                 </div>
 
                 <div 
-                    className="relative w-full h-[450px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center p-6 select-none"
+                    className="relative w-full h-[480px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center p-6 select-none"
                     role="region"
                     aria-label="Blueprint workstation positioning canvas"
                 >
@@ -75,6 +114,7 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
 
                     {floor?.desks?.map((d) => {
                         const isSelected = selectedDesk?.id === d.id;
+                        const isPermanent = d.desk_type === 'permanent';
                         const leftPercent = ((d.x + 5) / 10) * 100;
                         const topPercent = ((d.y + 5) / 10) * 100;
 
@@ -91,11 +131,21 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
                                 className={`absolute -translate-x-1/2 -translate-y-1/2 p-2 rounded-xl text-center border transition-all focus:outline-none focus:ring-4 focus:ring-blue-400 ${
                                     isSelected
                                         ? 'bg-blue-600 text-white border-amber-400 scale-110 ring-4 ring-blue-500/30 z-30'
+                                        : isPermanent
+                                        ? 'bg-indigo-950/95 text-cyan-300 border-cyan-500/60 hover:scale-105 z-10'
                                         : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:border-blue-400 hover:scale-105 z-10'
                                 }`}
                             >
-                                <Monitor className="w-4 h-4 mx-auto mb-0.5" />
+                                <div className="flex items-center justify-center gap-1 mb-0.5">
+                                    <Monitor className="w-3.5 h-3.5" />
+                                    {isPermanent && <Lock className="w-2.5 h-2.5 text-amber-400" />}
+                                </div>
                                 <span className="block text-[10px] font-mono font-bold">{d.code}</span>
+                                {d.assigned_user_name && (
+                                    <span className="block text-[8px] font-semibold text-cyan-300 truncate max-w-[60px]">
+                                        {d.assigned_user_name.split(' ')[0]}
+                                    </span>
+                                )}
                             </button>
                         );
                     })}
@@ -103,13 +153,92 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
             </div>
 
             {/* Inspector Panel */}
-            <div className="lg:col-span-4 p-6 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col justify-between space-y-6">
+            <div className="lg:col-span-4 p-6 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col justify-between space-y-5">
                 {selectedDesk ? (
                     <div className="space-y-4">
                         <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
                             <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-cyan-400">Desk Inspector</span>
                             <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedDesk.code}</h3>
                         </div>
+
+                        {/* Question: Is it Permanent or Flexible? */}
+                        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                                Desk Allocation Type
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedDesk({ ...selectedDesk, desk_type: 'flexible' })}
+                                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                        selectedDesk.desk_type !== 'permanent'
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                                    }`}
+                                >
+                                    <Unlock className="w-3.5 h-3.5" /> Flexible (Hot Desk)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedDesk({ ...selectedDesk, desk_type: 'permanent' })}
+                                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                        selectedDesk.desk_type === 'permanent'
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                                    }`}
+                                >
+                                    <Lock className="w-3.5 h-3.5" /> Permanent
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* If Permanent: Whose desk is it and on what days? */}
+                        {selectedDesk.desk_type === 'permanent' && (
+                            <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 space-y-3 animate-in fade-in">
+                                <div>
+                                    <label className="block text-xs font-bold text-indigo-900 dark:text-indigo-200 mb-1 flex items-center gap-1">
+                                        <User className="w-3.5 h-3.5" /> Whose desk is it? (Assigned Employee)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={selectedDesk.assigned_user_name || ''}
+                                        onChange={(e) => setSelectedDesk({ ...selectedDesk, assigned_user_name: e.target.value })}
+                                        placeholder="e.g. Rob Rathbone / Simon Smith"
+                                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-indigo-900 dark:text-indigo-200 mb-1.5 flex items-center gap-1">
+                                        <Calendar className="w-3.5 h-3.5" /> In-Office Assigned Days
+                                    </label>
+                                    <div className="flex items-center gap-1.5">
+                                        {ALL_WEEKDAYS.map((day) => {
+                                            const activeDays = parseDays(selectedDesk.assigned_days);
+                                            const isActive = activeDays.includes(day);
+
+                                            return (
+                                                <button
+                                                    key={day}
+                                                    type="button"
+                                                    onClick={() => toggleDay(day)}
+                                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                        isActive
+                                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                                            : 'bg-white dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
+                                                    }`}
+                                                >
+                                                    {day}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <span className="text-[10px] text-indigo-700 dark:text-indigo-300 mt-1 block">
+                                        Frees as a hot desk on unscheduled days.
+                                    </span>
+                                </div>
+                            </div>
+                        )}
 
                         <div>
                             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Friendly Label</label>
@@ -138,48 +267,47 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
                                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Canvas X</label>
                                 <input
                                     type="number"
-                                    step="0.5"
+                                    step="0.2"
                                     value={selectedDesk.x}
-                                    onChange={(e) => setSelectedDesk({ ...selectedDesk, x: Number(e.target.value) })}
-                                    className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white"
+                                    onChange={(e) => setSelectedDesk({ ...selectedDesk, x: parseFloat(e.target.value) || 0 })}
+                                    className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white"
                                 />
                             </div>
                             <div>
                                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Canvas Y</label>
                                 <input
                                     type="number"
-                                    step="0.5"
+                                    step="0.2"
                                     value={selectedDesk.y}
-                                    onChange={(e) => setSelectedDesk({ ...selectedDesk, y: Number(e.target.value) })}
-                                    className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white"
+                                    onChange={(e) => setSelectedDesk({ ...selectedDesk, y: parseFloat(e.target.value) || 0 })}
+                                    className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white"
                                 />
                             </div>
                         </div>
 
                         {feedback && (
-                            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-800">
-                                <CheckCircle2 className="w-4 h-4" /> {feedback}
+                            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                <span>{feedback}</span>
                             </div>
                         )}
-
-                        <button
-                            type="button"
-                            onClick={() => saveMutation.mutate(selectedDesk)}
-                            disabled={saveMutation.isPending}
-                            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white shadow-lg transition-all flex items-center justify-center gap-2 focus:ring-4 focus:ring-blue-400/40"
-                        >
-                            <Save className="w-4 h-4" /> Save Desk Configuration
-                        </button>
                     </div>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
-                        <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-cyan-400">
-                            <Move className="w-6 h-6" />
-                        </div>
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">Select a Workstation</h4>
-                        <p className="text-xs text-slate-400">Click any desk icon to inspect coordinates and tags.</p>
+                    <div className="text-center py-16 text-slate-400">
+                        <Move className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs">Select any workstation on the canvas to configure allocation and coordinates.</p>
                     </div>
                 )}
+
+                <button
+                    type="button"
+                    disabled={!selectedDesk || saveMutation.isPending}
+                    onClick={() => selectedDesk && saveMutation.mutate(selectedDesk)}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-40 transition-all"
+                >
+                    <Save className="w-4 h-4" />
+                    <span>Save Desk Changes</span>
+                </button>
             </div>
         </div>
     );

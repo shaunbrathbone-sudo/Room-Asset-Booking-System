@@ -1,4 +1,4 @@
-﻿## Features Registry (SpaceBook / Cloudfy Management Portal)
+﻿## Features Registry (SpaceBook / My Workspaces)
 
 | ID | Title | Description | Status | Date |
 |---|---|---|---|---|
@@ -15,3 +15,6 @@
 | `FEAT-0034` | 3-Day Live & Predictive Weather Forecast | Meteorological forecast via Open-Meteo with commute weather advisories. | Completed | 2026-08-16 |
 | `FEAT-0035` | Email Notification Engine & Template Studio | Admin email builder for Confirmation, 24h Reminder, 15m Meeting Alert & Test Dispatcher. | Completed | 2026-08-16 |
 | `FEAT-0036` | Favourite Desks & 1-Click Repeat Booking | Save go-to workstations with heart toggles and 1-click repeat reservation flow. | Completed | 2026-08-16 |
+| `FEAT-0037` | "Book Now" Real-Time Quick Booker | Instant availability scanner for meeting rooms (free now/next hours) & hot desks. | Completed | 2026-08-16 |
+| `FEAT-0038` | Permanent vs. Flexible Desk Allocation Engine | Admin floor editor desk assignment, hybrid in-office day scheduler, and settings management. | Completed | 2026-08-16 |
+| `FEAT-0039` | "My Workspaces" System-Wide Rebrand | Platform-wide rebrand to My Workspaces and direct local office routing. | Completed | 2026-08-16 |

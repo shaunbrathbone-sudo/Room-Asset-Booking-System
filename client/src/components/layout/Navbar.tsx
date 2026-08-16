@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { UniversalSearch } from '@/components/search/UniversalSearch';
+import { BookNowQuickModal } from '@/components/booking/BookNowQuickModal';
+import { Zap } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 
 const parseBreadcrumbs = (pathname: string) => {
@@ -36,6 +38,7 @@ export const Navbar = () => {
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
     const { user, isAuthenticated, logout } = useAuth();
+    const [bookNowOpen, setBookNowOpen] = useState(false);
     const breadcrumbs = parseBreadcrumbs(pathname);
     const isApproverOrAdmin = user?.role === 'approver' || user?.role === 'location_admin' || user?.role === 'super_admin';
     const isFullAdmin = user?.role === 'location_admin' || user?.role === 'super_admin';
@@ -52,7 +55,7 @@ export const Navbar = () => {
                             </div>
                             <div className="hidden sm:flex flex-col">
                                 <span className="font-black text-base tracking-tight text-slate-900 dark:text-white leading-none">
-                                    Cloudfy <span className="text-blue-600 dark:text-cyan-400 font-bold">Workspaces</span>
+                                    My <span className="text-blue-600 dark:text-cyan-400 font-bold">Workspaces</span>
                                 </span>
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
                                     3D Asset & Desk System
@@ -61,16 +64,40 @@ export const Navbar = () => {
                         </Link>
 
                         {/* Top Nav Links */}
-                        <div className="hidden lg:flex items-center gap-1 text-sm font-medium">
+                        <div className="hidden lg:flex items-center gap-1.5 text-sm font-medium">
+                            {/* "Book Now" Instant Real-Time Availability Action */}
+                            <button
+                                type="button"
+                                onClick={() => setBookNowOpen(true)}
+                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+                            >
+                                <Zap className="w-3.5 h-3.5 fill-slate-950 animate-pulse" />
+                                <span>Book Now</span>
+                            </button>
+
+                            {/* Direct Local Office Building Link */}
                             <Link
-                                href="/explore"
-                                className={`px-3 py-1.5 rounded-lg transition-colors ${
-                                    pathname.startsWith('/explore')
+                                href="/explore/united-kingdom/leicester-hub"
+                                className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${
+                                    pathname.includes('/leicester-hub') || pathname.includes('/london-hq') || pathname.includes('/cloudfy-india-noida')
                                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold'
                                         : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400'
                                 }`}
                             >
-                                3D Spaces
+                                <span>3D Spaces (My Office)</span>
+                            </Link>
+
+                            {/* Global 3D Globe Link */}
+                            <Link
+                                href="/explore"
+                                className={`px-2.5 py-1.5 rounded-lg transition-colors text-xs ${
+                                    pathname === '/explore'
+                                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
+                                }`}
+                                title="View International 3D Earth Globe"
+                            >
+                                🌍 Globe
                             </Link>
                             <Link
                                 href="/assets"
@@ -243,6 +270,7 @@ export const Navbar = () => {
                     </div>
                 </div>
             </div>
+            <BookNowQuickModal isOpen={bookNowOpen} onClose={() => setBookNowOpen(false)} />
         </nav>
     );
 };

@@ -267,3 +267,8 @@ CREATE TABLE IF NOT EXISTS favourite_desks (
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (user_id, desk_id)
 );
+-- Desk Permanent vs Flexible Allocation Columns
+-- desk_type: 'flexible' | 'permanent'
+-- assigned_user_id: user UUID if permanent
+-- assigned_user_name: display name
+-- assigned_days: JSON array e.g. ["Mon","Tue","Wed","Thu","Fri"]
