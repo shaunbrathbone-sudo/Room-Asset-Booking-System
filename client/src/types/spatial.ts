@@ -20,20 +20,24 @@ export interface Country {
 
 export interface Office {
     id: string;
-    countryId: string;
+    countryId?: string;
     name: string;
     slug: string;
-    addressLine1: string;
-    addressLine2: string | null;
-    city: string;
-    postcode: string;
-    latitude: number;
-    longitude: number;
-    photoUrl: string | null;
-    floorCount: number;
-    operationalHours: string | null;
-    isActive: boolean;
+    address?: string;
+    addressLine1?: string;
+    addressLine2?: string | null;
+    city?: string;
+    postcode?: string;
+    latitude?: number;
+    longitude?: number;
+    photoUrl?: string | null;
+    imageUrl?: string | null;
+    floorCount?: number;
+    floorsCount?: number;
+    operationalHours?: string | null;
+    isActive?: boolean;
     tenants?: Tenant[];
+    floors?: Floor[];
 }
 
 export interface Floor {

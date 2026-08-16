@@ -30,19 +30,13 @@ const OfficeStackPage = () => {
         },
     });
 
-    const { data: floors = [], isLoading: floorsLoading } = useQuery<Floor[]>({
-        queryKey: ['floors', officeSlug],
-        queryFn: async () => {
-            const { data } = await api.get(`/offices/${officeSlug}/floors`);
-            return data;
-        },
-    });
+    const floors: Floor[] = (office as any)?.floors || [];
 
     const handleFloorSelect = (floor: Floor) => {
         router.push(`/explore/${countrySlug}/${officeSlug}/${floor.slug}`);
     };
 
-    if (officeLoading || floorsLoading) {
+    if (officeLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -101,7 +95,7 @@ const OfficeStackPage = () => {
                         <div className="space-y-1.5 mt-2 text-xs text-slate-500 dark:text-slate-400">
                             <div className="flex items-center gap-2">
                                 <MapPin className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-                                <span>{office.addressLine1}, {office.city}, {office.postcode}</span>
+                                <span>{office.address || (office.addressLine1 ? `${office.addressLine1}, ${office.city || ''}, ${office.postcode || ''}` : '17 Friar Lane, Leicester LE1 5RB')}</span>
                             </div>
                             {office.operationalHours && (
                                 <div className="flex items-center gap-2">

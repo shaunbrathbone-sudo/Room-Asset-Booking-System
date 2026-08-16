@@ -500,4 +500,35 @@ router.get('/search', async (req, res) => {
     }
 });
 
+
+// GET /api/offices/:slug/floors
+router.get('/offices/:slug/floors', async (req, res) => {
+    try {
+        const pool = await getPool();
+        const officeRes = await pool.request()
+            .input('slug', req.params.slug)
+            .query('SELECT id FROM offices WHERE slug = @slug LIMIT 1');
+
+        if (!officeRes.recordset?.length) {
+            res.status(404).json({ error: 'Office not found' });
+            return;
+        }
+
+        const officeId = officeRes.recordset[0].id;
+        const floorsRes = await pool.request()
+            .input('officeId', officeId)
+            .query(`
+                SELECT f.id, f.floor_number as floorNumber, f.name, f.slug
+                FROM floors f
+                WHERE f.office_id = @officeId
+                ORDER BY f.floor_number ASC
+            `);
+
+        res.json(floorsRes.recordset || []);
+    } catch (err) {
+        console.error('Error fetching office floors:', err);
+        res.status(500).json({ error: 'Failed to fetch office floors' });
+    }
+});
+
 export default router;
