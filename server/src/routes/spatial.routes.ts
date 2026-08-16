@@ -1,6 +1,5 @@
 ﻿import { Router } from 'express';
 import { getPool } from '../config/database';
-import { authenticate } from '../middleware/auth';
 
 const router = Router();
 
@@ -10,20 +9,35 @@ router.get('/countries', async (_req, res) => {
         const pool = await getPool();
         const result = await pool.request().query(`
             SELECT 
-                c.id, c.name, c.code, c.slug, c.latitude, c.longitude,
+                c.id, c.name, c.iso_code AS code, c.slug, c.latitude, c.longitude,
                 COUNT(DISTINCT o.id) AS total_offices,
-                COALESCE(SUM(o.total_desks), 0) AS total_desks,
-                COALESCE(SUM(o.total_meeting_rooms), 0) AS total_meeting_rooms,
                 COALESCE((
-                    SELECT COUNT(*) 
-                    FROM desks d 
-                    JOIN floors f ON f.id = d.floor_id 
-                    JOIN offices off ON off.id = f.office_id 
+                    SELECT COUNT(d.id)
+                    FROM desks d
+                    JOIN zones z ON z.id = d.zone_id
+                    JOIN floors f ON f.id = z.floor_id
+                    JOIN offices off ON off.id = f.office_id
+                    WHERE off.country_id = c.id
+                ), 0) AS total_desks,
+                COALESCE((
+                    SELECT COUNT(mr.id)
+                    FROM meeting_rooms mr
+                    JOIN zones z ON z.id = mr.zone_id
+                    JOIN floors f ON f.id = z.floor_id
+                    JOIN offices off ON off.id = f.office_id
+                    WHERE off.country_id = c.id
+                ), 0) AS total_meeting_rooms,
+                COALESCE((
+                    SELECT COUNT(d.id)
+                    FROM desks d
+                    JOIN zones z ON z.id = d.zone_id
+                    JOIN floors f ON f.id = z.floor_id
+                    JOIN offices off ON off.id = f.office_id
                     WHERE off.country_id = c.id AND d.status = 'available'
                 ), 0) AS available_desks
             FROM countries c
             LEFT JOIN offices o ON o.country_id = c.id
-            GROUP BY c.id, c.name, c.code, c.slug, c.latitude, c.longitude
+            GROUP BY c.id, c.name, c.iso_code, c.slug, c.latitude, c.longitude
             ORDER BY c.name ASC
         `);
 
@@ -55,12 +69,27 @@ router.get('/countries/:slug/offices', async (req, res) => {
             .input('slug', slug)
             .query(`
                 SELECT 
-                    o.id, o.name, o.slug, o.address, o.timezone, o.floors_count,
-                    o.total_desks, o.total_meeting_rooms, o.image_url,
+                    o.id, o.name, o.slug, o.address_line1, o.city, o.postcode, o.floor_count,
+                    o.photo_url AS image_url,
                     COALESCE((
-                        SELECT COUNT(*) 
-                        FROM desks d 
-                        JOIN floors f ON f.id = d.floor_id 
+                        SELECT COUNT(d.id)
+                        FROM desks d
+                        JOIN zones z ON z.id = d.zone_id
+                        JOIN floors f ON f.id = z.floor_id
+                        WHERE f.office_id = o.id
+                    ), 0) AS total_desks,
+                    COALESCE((
+                        SELECT COUNT(mr.id)
+                        FROM meeting_rooms mr
+                        JOIN zones z ON z.id = mr.zone_id
+                        JOIN floors f ON f.id = z.floor_id
+                        WHERE f.office_id = o.id
+                    ), 0) AS total_meeting_rooms,
+                    COALESCE((
+                        SELECT COUNT(d.id)
+                        FROM desks d
+                        JOIN zones z ON z.id = d.zone_id
+                        JOIN floors f ON f.id = z.floor_id
                         WHERE f.office_id = o.id AND d.status = 'available'
                     ), 0) AS available_desks,
                     c.name AS country_name, c.slug AS country_slug
@@ -74,13 +103,17 @@ router.get('/countries/:slug/offices', async (req, res) => {
             id: row.id,
             name: row.name,
             slug: row.slug,
-            address: row.address,
-            timezone: row.timezone,
-            floorsCount: row.floors_count,
+            address: `${row.address_line1}, ${row.city} ${row.postcode}`,
+            addressLine1: row.address_line1,
+            city: row.city,
+            postcode: row.postcode,
+            floorsCount: row.floor_count,
+            floorCount: row.floor_count,
             totalDesks: row.total_desks,
             totalMeetingRooms: row.total_meeting_rooms,
             availableDesks: row.available_desks,
             imageUrl: row.image_url,
+            photoUrl: row.image_url,
             countryName: row.country_name,
             countrySlug: row.country_slug,
         })));
@@ -100,8 +133,8 @@ router.get('/offices/:slug', async (req, res) => {
             .input('slug', slug)
             .query(`
                 SELECT 
-                    o.id, o.name, o.slug, o.address, o.timezone, o.floors_count,
-                    o.total_desks, o.total_meeting_rooms, o.image_url,
+                    o.id, o.name, o.slug, o.address_line1, o.city, o.postcode, o.floor_count,
+                    o.photo_url AS image_url,
                     c.name AS country_name, c.slug AS country_slug
                 FROM offices o
                 JOIN countries c ON c.id = o.country_id
@@ -118,9 +151,24 @@ router.get('/offices/:slug', async (req, res) => {
             .input('officeId', office.id)
             .query(`
                 SELECT 
-                    f.id, f.floor_number, f.name, f.slug, f.total_desks, f.total_meeting_rooms,
+                    f.id, f.floor_number, f.name, f.slug,
                     COALESCE((
-                        SELECT COUNT(*) FROM desks d WHERE d.floor_id = f.id AND d.status = 'available'
+                        SELECT COUNT(d.id)
+                        FROM desks d
+                        JOIN zones z ON z.id = d.zone_id
+                        WHERE z.floor_id = f.id
+                    ), 0) AS total_desks,
+                    COALESCE((
+                        SELECT COUNT(mr.id)
+                        FROM meeting_rooms mr
+                        JOIN zones z ON z.id = mr.zone_id
+                        WHERE z.floor_id = f.id
+                    ), 0) AS total_meeting_rooms,
+                    COALESCE((
+                        SELECT COUNT(d.id)
+                        FROM desks d
+                        JOIN zones z ON z.id = d.zone_id
+                        WHERE z.floor_id = f.id AND d.status = 'available'
                     ), 0) AS available_desks
                 FROM floors f
                 WHERE f.office_id = @officeId
@@ -131,11 +179,8 @@ router.get('/offices/:slug', async (req, res) => {
             id: office.id,
             name: office.name,
             slug: office.slug,
-            address: office.address,
-            timezone: office.timezone,
-            floorsCount: office.floors_count,
-            totalDesks: office.total_desks,
-            totalMeetingRooms: office.total_meeting_rooms,
+            address: `${office.address_line1}, ${office.city} ${office.postcode}`,
+            floorsCount: office.floor_count,
             imageUrl: office.image_url,
             countryName: office.country_name,
             countrySlug: office.country_slug,
@@ -165,7 +210,7 @@ router.get('/floors/:slug', async (req, res) => {
             .input('slug', slug)
             .query(`
                 SELECT 
-                    f.id, f.floor_number, f.name, f.slug, f.total_desks, f.total_meeting_rooms,
+                    f.id, f.floor_number, f.name, f.slug,
                     o.id AS office_id, o.name AS office_name, o.slug AS office_slug,
                     c.name AS country_name, c.slug AS country_slug
                 FROM floors f
@@ -184,26 +229,29 @@ router.get('/floors/:slug', async (req, res) => {
             .input('floorId', floor.id)
             .query(`
                 SELECT 
-                    d.id, d.desk_code, d.type, d.status, d.position_x, d.position_y,
+                    d.id, d.code AS desk_code, d.label, d.status, d.x AS position_x, d.y AS position_y,
+                    d.equipment_tags, z.name AS zone_name, z.type AS zone_type,
                     u.first_name || ' ' || u.last_name AS current_user_name,
                     u.avatar_url AS current_user_avatar
                 FROM desks d
+                JOIN zones z ON z.id = d.zone_id
                 LEFT JOIN bookings b ON b.resource_id = d.id 
                     AND b.resource_type = 'desk' 
                     AND b.status = 'confirmed'
                     AND datetime('now') BETWEEN datetime(b.start_time) AND datetime(b.end_time)
                 LEFT JOIN users u ON u.id = b.user_id
-                WHERE d.floor_id = @floorId
-                ORDER BY d.desk_code ASC
+                WHERE z.floor_id = @floorId
+                ORDER BY d.code ASC
             `);
 
         const roomsResult = await pool.request()
             .input('floorId', floor.id)
             .query(`
-                SELECT id, name, capacity, has_av, has_video_conf, status
-                FROM meeting_rooms
-                WHERE floor_id = @floorId
-                ORDER BY name ASC
+                SELECT mr.id, mr.name, mr.capacity, mr.equipment_tags, mr.requires_approval, mr.status
+                FROM meeting_rooms mr
+                JOIN zones z ON z.id = mr.zone_id
+                WHERE z.floor_id = @floorId
+                ORDER BY mr.name ASC
             `);
 
         res.json({
@@ -211,8 +259,6 @@ router.get('/floors/:slug', async (req, res) => {
             floorNumber: floor.floor_number,
             name: floor.name,
             slug: floor.slug,
-            totalDesks: floor.total_desks,
-            totalMeetingRooms: floor.total_meeting_rooms,
             officeId: floor.office_id,
             officeName: floor.office_name,
             officeSlug: floor.office_slug,
@@ -221,10 +267,16 @@ router.get('/floors/:slug', async (req, res) => {
             desks: desksResult.recordset.map((d: any) => ({
                 id: d.id,
                 deskCode: d.desk_code,
-                type: d.type,
+                code: d.desk_code,
+                label: d.label,
+                type: d.zone_type || 'hot',
                 status: d.current_user_name ? 'occupied' : d.status,
                 posX: d.position_x,
                 posY: d.position_y,
+                x: d.position_x,
+                y: d.position_y,
+                equipmentTags: d.equipment_tags,
+                zoneName: d.zone_name,
                 currentUserName: d.current_user_name || null,
                 currentUserAvatar: d.current_user_avatar || null,
             })),
@@ -232,8 +284,10 @@ router.get('/floors/:slug', async (req, res) => {
                 id: r.id,
                 name: r.name,
                 capacity: r.capacity,
-                hasAv: r.has_av === 1,
-                hasVideoConf: r.has_video_conf === 1,
+                equipmentTags: r.equipment_tags,
+                hasAv: true,
+                hasVideoConf: true,
+                requiresApproval: r.requires_approval === 1,
                 status: r.status,
             })),
         });
@@ -259,15 +313,16 @@ router.get('/search', async (req, res) => {
             .input('q', searchPattern)
             .query(`
                 SELECT 
-                    d.id, d.desk_code, d.type, d.status,
+                    d.id, d.code AS desk_code, d.label, d.status,
                     f.name AS floor_name, f.slug AS floor_slug,
                     o.name AS office_name, o.slug AS office_slug,
                     c.slug AS country_slug
                 FROM desks d
-                JOIN floors f ON f.id = d.floor_id
+                JOIN zones z ON z.id = d.zone_id
+                JOIN floors f ON f.id = z.floor_id
                 JOIN offices o ON o.id = f.office_id
                 JOIN countries c ON c.id = o.country_id
-                WHERE LOWER(d.desk_code) LIKE @q OR LOWER(d.type) LIKE @q
+                WHERE LOWER(d.code) LIKE @q OR LOWER(COALESCE(d.label, '')) LIKE @q
                 LIMIT 5
             `);
 
@@ -281,7 +336,8 @@ router.get('/search', async (req, res) => {
                     o.name AS office_name, o.slug AS office_slug,
                     c.slug AS country_slug
                 FROM meeting_rooms mr
-                JOIN floors f ON f.id = mr.floor_id
+                JOIN zones z ON z.id = mr.zone_id
+                JOIN floors f ON f.id = z.floor_id
                 JOIN offices o ON o.id = f.office_id
                 JOIN countries c ON c.id = o.country_id
                 WHERE LOWER(mr.name) LIKE @q
@@ -293,11 +349,11 @@ router.get('/search', async (req, res) => {
             .input('q', searchPattern)
             .query(`
                 SELECT 
-                    o.id, o.name, o.slug, o.address,
+                    o.id, o.name, o.slug, o.address_line1, o.city, o.postcode,
                     c.name AS country_name, c.slug AS country_slug
                 FROM offices o
                 JOIN countries c ON c.id = o.country_id
-                WHERE LOWER(o.name) LIKE @q OR LOWER(o.address) LIKE @q
+                WHERE LOWER(o.name) LIKE @q OR LOWER(o.address_line1) LIKE @q OR LOWER(o.city) LIKE @q
                 LIMIT 5
             `);
 
@@ -308,14 +364,15 @@ router.get('/search', async (req, res) => {
                 SELECT 
                     u.id, u.first_name, u.last_name, u.email, u.role, u.avatar_url,
                     b.resource_id, b.resource_type, b.start_time, b.end_time,
-                    d.desk_code, f.name AS floor_name, f.slug AS floor_slug,
+                    d.code AS desk_code, f.name AS floor_name, f.slug AS floor_slug,
                     o.name AS office_name, o.slug AS office_slug, c.slug AS country_slug
                 FROM users u
                 LEFT JOIN bookings b ON b.user_id = u.id 
                     AND b.status = 'confirmed'
                     AND datetime('now') BETWEEN datetime(b.start_time) AND datetime(b.end_time)
                 LEFT JOIN desks d ON d.id = b.resource_id AND b.resource_type = 'desk'
-                LEFT JOIN floors f ON f.id = d.floor_id
+                LEFT JOIN zones z ON z.id = d.zone_id
+                LEFT JOIN floors f ON f.id = z.floor_id
                 LEFT JOIN offices o ON o.id = f.office_id
                 LEFT JOIN countries c ON c.id = o.country_id
                 WHERE LOWER(u.first_name) LIKE @q OR LOWER(u.last_name) LIKE @q OR LOWER(u.email) LIKE @q
@@ -326,7 +383,6 @@ router.get('/search', async (req, res) => {
             desks: desksResult.recordset.map((d: any) => ({
                 id: d.id,
                 deskCode: d.desk_code,
-                type: d.type,
                 status: d.status,
                 floorName: d.floor_name,
                 floorSlug: d.floor_slug,
@@ -350,7 +406,7 @@ router.get('/search', async (req, res) => {
             offices: officesResult.recordset.map((o: any) => ({
                 id: o.id,
                 name: o.name,
-                address: o.address,
+                address: `${o.address_line1}, ${o.city} ${o.postcode}`,
                 url: `/explore/${o.country_slug}/${o.slug}`,
             })),
             colleagues: usersResult.recordset.map((u: any) => ({
