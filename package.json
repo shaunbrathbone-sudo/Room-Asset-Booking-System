@@ -1,0 +1,16 @@
+{
+    "name": "room-asset-booking-system",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Global 3D Workspace, Desk, Meeting Room & Asset Booking System",
+    "scripts": {
+        "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+        "build": "npm run build --prefix server && npm run build --prefix client",
+        "typecheck": "npm run typecheck --prefix server && npm run --prefix client tsc --noEmit",
+        "docker:db": "docker compose up -d",
+        "docker:down": "docker compose down"
+    },
+    "devDependencies": {
+        "concurrently": "^9.2.4"
+    }
+}
