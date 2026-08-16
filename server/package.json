@@ -1,39 +1,42 @@
 {
-    "name": "room-asset-booking-server",
-    "version": "1.0.0",
-    "description": "Express API backend for Room-Asset-Booking-System",
-    "main": "dist/server.js",
-    "scripts": {
-        "dev": "nodemon --watch src -e ts,sql --exec ts-node src/server.ts",
-        "build": "tsc",
-        "start": "node dist/server.js",
-        "typecheck": "tsc --noEmit"
-    },
-    "keywords": [],
-    "author": "Shaun Rathbone",
-    "license": "ISC",
-    "type": "commonjs",
-    "dependencies": {
-        "bcrypt": "^6.0.0",
-        "cors": "^2.8.6",
-        "dotenv": "^17.4.2",
-        "express": "^5.2.1",
-        "helmet": "^8.3.0",
-        "jsonwebtoken": "^9.0.3",
-        "mssql": "^12.7.0",
-        "uuid": "^14.0.1",
-        "zod": "^4.4.3"
-    },
-    "devDependencies": {
-        "@types/bcrypt": "^6.0.0",
-        "@types/cors": "^2.8.19",
-        "@types/express": "^5.0.6",
-        "@types/jsonwebtoken": "^9.0.10",
-        "@types/mssql": "^12.3.0",
-        "@types/node": "^26.2.0",
-        "@types/uuid": "^10.0.0",
-        "nodemon": "^3.1.14",
-        "ts-node": "^10.9.2",
-        "typescript": "^7.0.2"
-    }
+    "name":  "room-asset-booking-server",
+    "version":  "1.0.0",
+    "description":  "Express API backend for Room-Asset-Booking-System",
+    "main":  "dist/server.js",
+    "scripts":  {
+                    "dev":  "tsx watch src/server.ts",
+                    "build":  "tsc",
+                    "start":  "node dist/server.js",
+                    "typecheck":  "tsc --noEmit"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "Shaun Rathbone",
+    "license":  "ISC",
+    "type":  "commonjs",
+    "dependencies":  {
+                         "bcrypt":  "^6.0.0",
+                         "cors":  "^2.8.6",
+                         "dotenv":  "^17.4.2",
+                         "express":  "^5.2.1",
+                         "helmet":  "^8.3.0",
+                         "jsonwebtoken":  "^9.0.3",
+                         "mssql":  "^12.7.0",
+                         "uuid":  "^14.0.1",
+                         "zod":  "^4.4.3"
+                     },
+    "devDependencies":  {
+                            "@types/bcrypt":  "^6.0.0",
+                            "@types/cors":  "^2.8.19",
+                            "@types/express":  "^5.0.6",
+                            "@types/jsonwebtoken":  "^9.0.10",
+                            "@types/mssql":  "^12.3.0",
+                            "@types/node":  "^26.2.0",
+                            "@types/uuid":  "^10.0.0",
+                            "nodemon":  "^3.1.14",
+                            "ts-node":  "^10.9.2",
+                            "tsx":  "^4.23.12",
+                            "typescript":  "^7.0.2"
+                        }
 }

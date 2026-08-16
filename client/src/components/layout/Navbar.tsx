@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Globe, ChevronRight, Sun, Moon, LogOut, Settings, Calendar, Car, Sparkles, Bug, ShieldCheck } from 'lucide-react';
+import { Globe, ChevronRight, Sun, Moon, LogOut, Settings, Calendar, Car, Sparkles, Bug, ShieldCheck, BarChart3 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { UniversalSearch } from '@/components/search/UniversalSearch';
 import { useAuth } from '@/providers/AuthProvider';
@@ -102,16 +102,28 @@ export const Navbar = () => {
                                 <Bug className="w-4 h-4" /> Bugs
                             </Link>
                             {isApproverOrAdmin && (
-                                <Link
-                                    href="/admin/approvals"
-                                    className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-                                        pathname.startsWith('/admin/approvals')
-                                            ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-semibold'
-                                            : 'text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400'
-                                    }`}
-                                >
-                                    <ShieldCheck className="w-4 h-4" /> Approvals
-                                </Link>
+                                <>
+                                    <Link
+                                        href="/admin/approvals"
+                                        className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                                            pathname.startsWith('/admin/approvals')
+                                                ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-semibold'
+                                                : 'text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400'
+                                        }`}
+                                    >
+                                        <ShieldCheck className="w-4 h-4" /> Approvals
+                                    </Link>
+                                    <Link
+                                        href="/admin/analytics"
+                                        className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                                            pathname.startsWith('/admin/analytics')
+                                                ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 font-semibold'
+                                                : 'text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400'
+                                        }`}
+                                    >
+                                        <BarChart3 className="w-4 h-4" /> Analytics
+                                    </Link>
+                                </>
                             )}
                         </div>
 

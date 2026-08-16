@@ -1,52 +1,175 @@
-﻿import sql from 'mssql';
+﻿import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const config: sql.config = {
-    server: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '1433', 10),
-    database: process.env.DB_NAME || 'RoomAssetBooking',
-    user: process.env.DB_USER || 'sa',
-    password: process.env.DB_PASSWORD || '',
-    options: {
-        encrypt: process.env.DB_ENCRYPT === 'true',
-        trustServerCertificate: process.env.DB_TRUST_CERT !== 'false',
-        enableArithAbort: true,
-    },
-    pool: {
-        max: 10,
-        min: 0,
-        idleTimeoutMillis: 30000,
-    },
-};
+/**
+ * Universal Dual-Database Interface (MSSQL with automatic SQLite fallback).
+ */
+export interface UniversalPool {
+    request: () => UniversalRequest;
+    close: () => Promise<void>;
+}
 
-let pool: sql.ConnectionPool | null = null;
+export interface UniversalRequest {
+    input: (name: string, valueOrType: any, value?: any) => UniversalRequest;
+    query: (sqlText: string) => Promise<{ recordset: any[]; rowsAffected?: number[] }>;
+}
 
-export const getPool = async (): Promise<sql.ConnectionPool> => {
-    if (pool) return pool;
+let activeDriver: 'mssql' | 'sqlite' = 'sqlite';
+let sqliteDb: any = null;
+let mssqlPool: any = null;
 
-    try {
-        pool = await new sql.ConnectionPool(config).connect();
-        console.log('[DB] Connected to MSSQL:', config.server, '/', config.database);
+const initSqlite = () => {
+    if (!sqliteDb) {
+        const { DatabaseSync } = require('node:sqlite');
+        const dbPath = path.join(__dirname, '..', '..', 'spacebook.db');
+        sqliteDb = new DatabaseSync(dbPath);
+        console.log(`[DB] Connected to SQLite database at: ${dbPath}`);
 
-        pool.on('error', (err: Error) => {
-            console.error('[DB] Pool error:', err.message);
-            pool = null;
-        });
+        // Apply SQLite Schema & Seed
+        const schemaPath = path.join(__dirname, '..', 'db', 'schema.sql');
+        const seedPath = path.join(__dirname, '..', 'db', 'seed.sql');
 
-        return pool;
-    } catch (err) {
-        console.error('[DB] Failed to connect:', (err as Error).message);
-        throw err;
+        if (fs.existsSync(schemaPath)) {
+            const schemaSql = fs.readFileSync(schemaPath, 'utf-8');
+            sqliteDb.exec(schemaSql);
+            console.log('[DB] SQLite Schema applied successfully.');
+        }
+
+        if (fs.existsSync(seedPath)) {
+            const seedSql = fs.readFileSync(seedPath, 'utf-8');
+            try {
+                sqliteDb.exec(seedSql);
+                console.log('[DB] SQLite Seed data applied.');
+            } catch (err) {
+                // Ignore duplicate constraint warnings on re-runs
+            }
+        }
     }
 };
 
+const createSqliteRequest = (): UniversalRequest => {
+    const params: Record<string, any> = {};
+
+    const req: UniversalRequest = {
+        input: (name: string, valueOrType: any, value?: any) => {
+            const actualVal = value !== undefined ? value : valueOrType;
+            params[name] = actualVal;
+            return req;
+        },
+        query: async (sqlText: string) => {
+            initSqlite();
+
+            // Transform MSSQL SQL text to SQLite compatible SQL
+            let transformed = sqlText
+                // Date functions
+                .replace(/GETUTCDATE\(\)/gi, "datetime('now')")
+                .replace(/DATEADD\(minute,\s*@?([a-zA-Z0-9_]+),\s*([^)]+)\)/gi, "datetime($2, '+' || @$1 || ' minutes')")
+                .replace(/DATEADD\(hour,\s*([0-9]+),\s*GETUTCDATE\(\)\)/gi, "datetime('now', '+$1 hours')")
+                .replace(/TOP\s*\(\s*@?([a-zA-Z0-9_]+)\s*\)/gi, "") // We'll handle TOP via regex or LIMIT
+                .replace(/TOP\s+([0-9]+)/gi, "")
+                .replace(/\[([^\]]+)\]/g, '"$1"')
+                .replace(/u\.first_name\s*\+\s*' '\s*\+\s*u\.last_name/gi, "u.first_name || ' ' || u.last_name");
+
+            // Handle TOP @limit -> LIMIT @limit
+            const topMatch = sqlText.match(/TOP\s*\(\s*@?([a-zA-Z0-9_]+)\s*\)/i);
+            if (topMatch) {
+                const limitParam = topMatch[1];
+                if (!transformed.toLowerCase().includes('limit')) {
+                    transformed += ` LIMIT @${limitParam}`;
+                }
+            }
+
+            // Convert @named params to :named params for SQLite
+            let sqliteSql = transformed.replace(/@([a-zA-Z0-9_]+)/g, ':$1');
+
+            // Convert booleans / numbers
+            const bindObj: Record<string, any> = {};
+            for (const [k, v] of Object.entries(params)) {
+                if (typeof v === 'boolean') {
+                    bindObj[k] = v ? 1 : 0;
+                } else if (v === undefined) {
+                    bindObj[k] = null;
+                } else {
+                    bindObj[k] = v;
+                }
+            }
+
+            try {
+                // Determine if query is SELECT or Mutation
+                const trimmed = sqliteSql.trim().toUpperCase();
+                if (trimmed.startsWith('SELECT') || trimmed.startsWith('WITH')) {
+                    const stmt = sqliteDb.prepare(sqliteSql);
+                    const rows = stmt.all(bindObj);
+                    return { recordset: rows };
+                } else {
+                    const stmt = sqliteDb.prepare(sqliteSql);
+                    const info = stmt.run(bindObj);
+                    return { recordset: [], rowsAffected: [info.changes] };
+                }
+            } catch (err) {
+                console.error(`[SQLITE ERROR] in query:\n${sqliteSql}\nParams:`, bindObj, `\nError: ${(err as Error).message}`);
+                throw err;
+            }
+        },
+    };
+
+    return req;
+};
+
+export const getPool = async (): Promise<UniversalPool> => {
+    // Attempt MSSQL first
+    if (process.env.DB_HOST && process.env.DB_HOST !== 'localhost_disabled') {
+        try {
+            if (!mssqlPool) {
+                const sql = require('mssql');
+                const config = {
+                    server: process.env.DB_HOST || 'localhost',
+                    port: parseInt(process.env.DB_PORT || '1433', 10),
+                    database: process.env.DB_NAME || 'RoomAssetBooking',
+                    user: process.env.DB_USER || 'sa',
+                    password: process.env.DB_PASSWORD || '',
+                    options: {
+                        encrypt: process.env.DB_ENCRYPT === 'true',
+                        trustServerCertificate: process.env.DB_TRUST_CERT !== 'false',
+                        enableArithAbort: true,
+                    },
+                    connectionTimeout: 2000,
+                };
+                mssqlPool = await new sql.ConnectionPool(config).connect();
+                activeDriver = 'mssql';
+                console.log('[DB] Connected to MSSQL Server on port 1433.');
+            }
+            return mssqlPool;
+        } catch {
+            // MSSQL server not reachable; fall back to SQLite
+            activeDriver = 'sqlite';
+        }
+    }
+
+    // Default: SQLite Database Sync
+    initSqlite();
+    return {
+        request: createSqliteRequest,
+        close: async () => {
+            if (sqliteDb) {
+                sqliteDb.close();
+                sqliteDb = null;
+            }
+        },
+    };
+};
+
 export const closePool = async (): Promise<void> => {
-    if (pool) {
-        await pool.close();
-        pool = null;
-        console.log('[DB] Connection pool closed.');
+    if (mssqlPool) {
+        await mssqlPool.close();
+        mssqlPool = null;
+    }
+    if (sqliteDb) {
+        sqliteDb.close();
+        sqliteDb = null;
     }
 };
 

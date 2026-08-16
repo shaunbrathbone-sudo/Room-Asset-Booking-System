@@ -61,30 +61,9 @@ app.get('/api/health', (_req, res) => {
 const applySchema = async (): Promise<void> => {
     try {
         const pool = await getPool();
-        const schemaPath = path.join(__dirname, 'db', 'schema.mssql.sql');
-
-        if (fs.existsSync(schemaPath)) {
-            const schema = fs.readFileSync(schemaPath, 'utf-8');
-
-            const statements = schema
-                .split(/\n\n(?=(?:IF|CREATE|INSERT|ALTER))/gi)
-                .filter((s) => s.trim().length > 0);
-
-            for (const stmt of statements) {
-                try {
-                    await pool.request().query(stmt);
-                } catch (err) {
-                    const msg = (err as Error).message;
-                    if (!msg.includes('already exists') && !msg.includes('duplicate') && !msg.includes('already has')) {
-                        console.warn('[DB] Schema statement warning:', msg.substring(0, 200));
-                    }
-                }
-            }
-
-            console.log('[DB] Schema applied successfully.');
-        }
+        console.log('[DB] Database initialized successfully.');
     } catch (err) {
-        console.error('[DB] Failed to apply schema:', (err as Error).message);
+        console.error('[DB] Failed to initialize database:', (err as Error).message);
     }
 };
 
@@ -97,7 +76,8 @@ const start = async (): Promise<void> => {
         ghostScheduler = initGhostBookingScheduler(60000);
 
         app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode.`);
+            console.log(`\n🚀 Room-Asset-Booking API Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode.`);
+            console.log(`   Health Check: http://localhost:${PORT}/api/health\n`);
         });
     } catch (err) {
         console.error('Failed to start server:', (err as Error).message);

@@ -16,7 +16,7 @@ export const getCountries = async (): Promise<Country[]> => {
             SELECT
                 f.office_id,
                 COUNT(d.id) AS total,
-                SUM(CASE WHEN d.status = ''available'' AND d.is_bookable = 1 THEN 1 ELSE 0 END) AS available
+                SUM(CASE WHEN d.status = 'available' AND d.is_bookable = 1 THEN 1 ELSE 0 END) AS available
             FROM floors f
             JOIN zones z ON z.floor_id = f.id
             JOIN desks d ON d.zone_id = z.id
@@ -151,7 +151,7 @@ export const getFloorsByOffice = async (officeSlug: string): Promise<Floor[]> =>
             LEFT JOIN (
                 SELECT z.floor_id,
                     COUNT(d.id) AS total,
-                    SUM(CASE WHEN d.status = ''available'' AND d.is_bookable = 1 THEN 1 ELSE 0 END) AS available
+                    SUM(CASE WHEN d.status = 'available' AND d.is_bookable = 1 THEN 1 ELSE 0 END) AS available
                 FROM zones z
                 JOIN desks d ON d.zone_id = z.id
                 GROUP BY z.floor_id
