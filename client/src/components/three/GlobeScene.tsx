@@ -33,7 +33,7 @@ const calculateSunPosition = (date: Date = new Date(), radius: number = 300): TH
     return latLngToVector3(sunLat, sunLng, radius);
 };
 
-/* ─── Country Borders Line Layer (Balanced In-Between) ───── */
+/* ─── Country Borders Line Layer ─────────────────────────── */
 
 const WorldCountryBorders = () => {
     const [bordersGeo, setBordersGeo] = useState<THREE.BufferGeometry | null>(null);
@@ -272,8 +272,15 @@ interface OfficePinProps {
 
 const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
     const isLondon = office.slug.includes('london');
-    const badgeLabel = isLondon ? '🇬🇧 London HQ' : '🇬🇧 Leicester Hub';
-    const themeColor = isLondon ? '#38bdf8' : '#f59e0b';
+    const isIndia = office.slug.includes('india') || office.countrySlug === 'india';
+
+    const badgeLabel = isIndia
+        ? '🇮🇳 Noida Tech Hub'
+        : isLondon
+        ? '🇬🇧 London HQ'
+        : '🇬🇧 Leicester Hub';
+
+    const themeColor = isIndia ? '#f97316' : isLondon ? '#38bdf8' : '#f59e0b';
 
     // Dot is placed at exact geographic coordinates
     const dotPos = useMemo(
@@ -281,12 +288,12 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
         [office.latitude, office.longitude]
     );
 
-    // Label is placed with comfortable rightward offset
-    const labelLngOffset = isLondon ? 6.2 : 5.8;
-    const labelLatOffset = isLondon ? -0.2 : 0.2;
+    // Label is placed with comfortable rightward/eastward offset
+    const labelLngOffset = isIndia ? 6.8 : isLondon ? 6.2 : 5.8;
+    const labelLatOffset = isIndia ? 0.0 : isLondon ? -0.2 : 0.2;
     const labelPos = useMemo(
         () => latLngToVector3(office.latitude + labelLatOffset, office.longitude + labelLngOffset, 100.5),
-        [office.latitude, office.longitude, isLondon, labelLatOffset, labelLngOffset]
+        [office.latitude, office.longitude, labelLatOffset, labelLngOffset]
     );
 
     const meshRef = useRef<THREE.Mesh>(null);
@@ -314,8 +321,8 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
                 >
                     <sphereGeometry args={[0.9, 20, 20]} />
                     <meshStandardMaterial
-                        color={hovered ? '#fbbf24' : isLondon ? '#38bdf8' : '#ef4444'}
-                        emissive={hovered ? '#f59e0b' : isLondon ? '#0284c7' : '#dc2626'}
+                        color={hovered ? '#fbbf24' : themeColor}
+                        emissive={hovered ? '#f59e0b' : themeColor}
                         emissiveIntensity={3}
                         roughness={0.1}
                     />
@@ -325,7 +332,7 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
                 <mesh rotation={[-Math.PI / 2, 0, 0]}>
                     <ringGeometry args={[1.0, 1.7, 24]} />
                     <meshBasicMaterial
-                        color={isLondon ? '#38bdf8' : '#ef4444'}
+                        color={themeColor}
                         transparent
                         opacity={0.4}
                         side={THREE.DoubleSide}
@@ -344,12 +351,12 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
                         onClick={() => onSelectOffice(office.countrySlug, office.slug)}
                         className="group flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/95 backdrop-blur-md text-white border border-amber-400/80 shadow-xl shadow-amber-500/20 hover:scale-110 hover:border-amber-300 transition-transform whitespace-nowrap"
                     >
-                        <span className={`w-1.5 h-1.5 rounded-full ${isLondon ? 'bg-cyan-400' : 'bg-emerald-400'} animate-ping flex-shrink-0`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isIndia ? 'bg-orange-400' : isLondon ? 'bg-cyan-400' : 'bg-emerald-400'} animate-ping flex-shrink-0`} />
                         <span className="text-[10px] font-bold text-white tracking-tight">
                             {badgeLabel}
                         </span>
                         <span className="text-[9px] text-amber-300 font-semibold px-1 rounded bg-white/15">
-                            {office.availableDesks ?? 8}
+                            {office.availableDesks ?? 24}
                         </span>
                     </button>
                 </Html>
@@ -440,30 +447,47 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
         const list: any[] = [];
         countries.forEach((c) => {
             if (Array.isArray(c.offices) && c.offices.length > 0) {
-                list.push(...c.offices);
-            } else {
-                list.push(
-                    {
-                        id: '55555555-5555-5555-5555-555555555555',
-                        name: 'Leicester Hub',
-                        slug: 'leicester-hub',
-                        countrySlug: c.slug || 'united-kingdom',
-                        latitude: 52.6339,
-                        longitude: -1.1360,
-                        availableDesks: 8,
-                    },
-                    {
-                        id: '66666666-6666-6666-6666-666666666666',
-                        name: 'London Office (Brandwidth HQ)',
-                        slug: 'london-hq',
-                        countrySlug: c.slug || 'united-kingdom',
-                        latitude: 51.5235,
-                        longitude: -0.1054,
-                        availableDesks: 28,
-                    }
-                );
+                c.offices.forEach((off: any) => {
+                    list.push({
+                        ...off,
+                        countrySlug: off.countrySlug || c.slug,
+                    });
+                });
             }
         });
+
+        // If list is empty, default to registered hubs
+        if (list.length === 0) {
+            list.push(
+                {
+                    id: '55555555-5555-5555-5555-555555555555',
+                    name: 'Leicester Hub',
+                    slug: 'leicester-hub',
+                    countrySlug: 'united-kingdom',
+                    latitude: 52.6339,
+                    longitude: -1.1360,
+                    availableDesks: 8,
+                },
+                {
+                    id: '66666666-6666-6666-6666-666666666666',
+                    name: 'London Office (Brandwidth HQ)',
+                    slug: 'london-hq',
+                    countrySlug: 'united-kingdom',
+                    latitude: 51.5235,
+                    longitude: -0.1054,
+                    availableDesks: 28,
+                },
+                {
+                    id: '88888888-8888-8888-8888-888888888888',
+                    name: 'Cloudfy Ecommerce India Pvt Ltd',
+                    slug: 'cloudfy-india-noida',
+                    countrySlug: 'india',
+                    latitude: 28.6280,
+                    longitude: 77.3649,
+                    availableDesks: 24,
+                }
+            );
+        }
         return list;
     }, [countries]);
 

@@ -10,3 +10,4 @@
 | `FEAT-0029` | Office Onboarding Wizard | 5-step guided wizard for facility admins to provision hubs, building stacks, and desks. | Completed | 2026-08-16 |
 | `FEAT-0030` | Interactive Floor & Facility Hotspots Editor | Blueprint canvas desk placer, system ID binding, and facility photo hotspot tagging. | Completed | 2026-08-16 |
 | `FEAT-0031` | Device GPS Geolocation Globe Orientation | Auto-detect device coordinates to orient 3D globe camera directly to user's location. | Completed | 2026-08-16 |
+| `FEAT-0032` | Cloudfy Ecommerce India (Noida Hub) | 3rd Floor Corenthum Tower C, 24 desks, 2 meeting suites, Chai Bar & photo hotspots. | Completed | 2026-08-16 |
