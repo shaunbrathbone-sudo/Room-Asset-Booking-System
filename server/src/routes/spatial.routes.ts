@@ -3,11 +3,11 @@ import { getPool } from '../config/database';
 
 const router = Router();
 
-// ── 1. GLOBE LEVEL: Get All Countries ───────────────────────────
+// ── 1. GLOBE LEVEL: Get All Countries & Active Offices ──────────
 router.get('/countries', async (_req, res) => {
     try {
         const pool = await getPool();
-        const result = await pool.request().query(`
+        const countriesResult = await pool.request().query(`
             SELECT 
                 c.id, c.name, c.iso_code AS code, c.slug, c.latitude, c.longitude,
                 COUNT(DISTINCT o.id) AS total_offices,
@@ -41,17 +41,57 @@ router.get('/countries', async (_req, res) => {
             ORDER BY c.name ASC
         `);
 
-        res.json(result.recordset.map((row: any) => ({
+        const officesResult = await pool.request().query(`
+            SELECT 
+                o.id, o.country_id, o.name, o.slug, o.latitude, o.longitude, o.address_line1, o.city, o.postcode,
+                c.slug AS country_slug, c.name AS country_name,
+                COALESCE((
+                    SELECT COUNT(d.id)
+                    FROM desks d
+                    JOIN zones z ON z.id = d.zone_id
+                    JOIN floors f ON f.id = z.floor_id
+                    WHERE f.office_id = o.id
+                ), 0) AS total_desks,
+                COALESCE((
+                    SELECT COUNT(d.id)
+                    FROM desks d
+                    JOIN zones z ON z.id = d.zone_id
+                    JOIN floors f ON f.id = z.floor_id
+                    WHERE f.office_id = o.id AND d.status = 'available'
+                ), 0) AS available_desks
+            FROM offices o
+            JOIN countries c ON c.id = o.country_id
+            WHERE o.is_active = 1
+            ORDER BY o.name ASC
+        `);
+
+        const allOffices = officesResult.recordset.map((row: any) => ({
+            id: row.id,
+            countryId: row.country_id,
+            name: row.name,
+            slug: row.slug,
+            countrySlug: row.country_slug,
+            countryName: row.country_name,
+            latitude: row.latitude,
+            longitude: row.longitude,
+            totalDesks: row.total_desks,
+            availableDesks: row.available_desks,
+            address: `${row.address_line1}, ${row.city}`,
+        }));
+
+        res.json(countriesResult.recordset.map((row: any) => ({
             id: row.id,
             name: row.name,
             code: row.code,
             slug: row.slug,
             latitude: row.latitude,
             longitude: row.longitude,
+            officeCount: row.total_offices,
             totalOffices: row.total_offices,
             totalDesks: row.total_desks,
             totalMeetingRooms: row.total_meeting_rooms,
             availableDesks: row.available_desks,
+            offices: allOffices.filter((o: any) => o.countryId === row.id),
         })));
     } catch (err) {
         console.error('Error fetching countries:', err);
@@ -70,7 +110,7 @@ router.get('/countries/:slug/offices', async (req, res) => {
             .query(`
                 SELECT 
                     o.id, o.name, o.slug, o.address_line1, o.city, o.postcode, o.floor_count,
-                    o.photo_url AS image_url,
+                    o.latitude, o.longitude, o.photo_url AS image_url,
                     COALESCE((
                         SELECT COUNT(d.id)
                         FROM desks d
@@ -103,6 +143,8 @@ router.get('/countries/:slug/offices', async (req, res) => {
             id: row.id,
             name: row.name,
             slug: row.slug,
+            latitude: row.latitude,
+            longitude: row.longitude,
             address: `${row.address_line1}, ${row.city} ${row.postcode}`,
             addressLine1: row.address_line1,
             city: row.city,

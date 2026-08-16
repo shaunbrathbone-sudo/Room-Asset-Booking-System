@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Stars, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTheme } from 'next-themes';
+import { useRouter } from 'next/navigation';
 import type { Country } from '@/types/spatial';
 
 /* ─── Helpers & Real-Time Solar Calculations ─────────────── */
@@ -94,7 +95,6 @@ const WorldCountryBorders = () => {
     if (!bordersGeo) return null;
 
     return (
-        /* Balanced medium steel-blue outlines - perfectly readable without being heavy */
         <lineSegments geometry={bordersGeo}>
             <lineBasicMaterial
                 color="#0284c7"
@@ -204,7 +204,7 @@ const RealTimeEarthSphere = () => {
                 <sphereGeometry args={[100, 64, 64]} />
             </mesh>
 
-            {/* Country Borders Line Overlay (Balanced In-Between) */}
+            {/* Country Borders Line Overlay */}
             <WorldCountryBorders />
 
             {/* Atmosphere Halo */}
@@ -221,17 +221,26 @@ const RealTimeEarthSphere = () => {
     );
 };
 
-/* ─── Compact Sci-Fi Beacon Location Pin (1/4 Scale) ──────── */
+/* ─── Individual Office Location Pin (1/4 Scale) ─────────── */
 
-interface GlobePinProps {
-    country: Country;
-    onSelect: (country: Country) => void;
+interface OfficePinProps {
+    office: {
+        id: string;
+        name: string;
+        slug: string;
+        countrySlug: string;
+        latitude: number;
+        longitude: number;
+        availableDesks?: number;
+        totalDesks?: number;
+    };
+    onSelectOffice: (countrySlug: string, officeSlug: string) => void;
 }
 
-const GlobePin = ({ country, onSelect }: GlobePinProps) => {
+const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
     const position = useMemo(
-        () => latLngToVector3(country.latitude, country.longitude, 100.2),
-        [country.latitude, country.longitude]
+        () => latLngToVector3(office.latitude, office.longitude, 100.2),
+        [office.latitude, office.longitude]
     );
 
     const meshRef = useRef<THREE.Mesh>(null);
@@ -244,63 +253,66 @@ const GlobePin = ({ country, onSelect }: GlobePinProps) => {
         }
     });
 
+    const isLondon = office.slug.includes('london');
+    const badgeLabel = isLondon ? '🇬🇧 London HQ' : '🇬🇧 Leicester Hub';
+
     return (
         <group position={position}>
-            {/* Compact Pin Sphere (Tiny dot right over Leicester) */}
+            {/* Compact Pin Sphere */}
             <mesh
                 ref={meshRef}
                 onPointerEnter={() => setHovered(true)}
                 onPointerLeave={() => setHovered(false)}
-                onClick={() => onSelect(country)}
+                onClick={() => onSelectOffice(office.countrySlug, office.slug)}
             >
-                <sphereGeometry args={[0.9, 20, 20]} />
+                <sphereGeometry args={[0.8, 20, 20]} />
                 <meshStandardMaterial
-                    color={hovered ? '#fbbf24' : '#ef4444'}
-                    emissive={hovered ? '#f59e0b' : '#dc2626'}
+                    color={hovered ? '#fbbf24' : isLondon ? '#3b82f6' : '#ef4444'}
+                    emissive={hovered ? '#f59e0b' : isLondon ? '#2563eb' : '#dc2626'}
                     emissiveIntensity={3}
                     roughness={0.1}
                 />
             </mesh>
 
-            {/* Compact Subtle Radar Ring */}
+            {/* Radar Pulsing Ring */}
             <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[1.1, 2.0, 24]} />
+                <ringGeometry args={[1.0, 1.8, 24]} />
                 <meshBasicMaterial
-                    color="#ef4444"
+                    color={isLondon ? '#3b82f6' : '#ef4444'}
                     transparent
                     opacity={0.4}
                     side={THREE.DoubleSide}
                 />
             </mesh>
 
-            {/* Mini Vertical Beacon Stem Line */}
+            {/* Vertical Anchor Stem Line */}
             <line>
                 <bufferGeometry>
                     <bufferAttribute
                         attach="attributes-position"
-                        args={[new Float32Array([0, 0, 0, 0, 3.5, 0]), 3]}
+                        args={[new Float32Array([0, 0, 0, 0, isLondon ? 3.0 : 4.5, 0]), 3]}
                     />
                 </bufferGeometry>
-                <lineBasicMaterial color="#38bdf8" linewidth={1.5} transparent opacity={0.75} />
+                <lineBasicMaterial color={isLondon ? '#60a5fa' : '#38bdf8'} linewidth={1.5} transparent opacity={0.75} />
             </line>
 
             {/* 1/4 Scale Compact Micro-Pill Tag */}
             <Html
-                position={[0, 4.2, 0]}
+                position={[0, isLondon ? 3.6 : 5.1, 0]}
                 distanceFactor={45}
                 center
                 style={{ pointerEvents: 'auto', cursor: 'pointer' }}
             >
                 <button
-                    onClick={() => onSelect(country)}
+                    onClick={() => onSelectOffice(office.countrySlug, office.slug)}
                     className="group flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-950/90 backdrop-blur-md text-white border border-amber-400/70 shadow-md shadow-amber-500/20 hover:scale-110 hover:border-amber-300 transition-transform whitespace-nowrap"
                 >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping flex-shrink-0" />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isLondon ? 'bg-cyan-400' : 'bg-emerald-400'} animate-ping flex-shrink-0`} />
                     <span className="text-[10px] font-bold text-white tracking-tight">
-                        🇬🇧 Leicester Hub
+                        {badgeLabel}
                     </span>
                     <span className="text-[9px] text-amber-300 font-semibold px-1 rounded bg-white/10">
-                        {country.availableDesks}
+                        {office.availableDesks ?? 8}
                     </span>
                 </button>
             </Html>
@@ -347,14 +359,52 @@ const FocusedCameraRig = ({ countries }: { countries: Country[] }) => {
 /* ─── Main Globe Scene Canvas ────────────────────────────── */
 
 interface GlobeSceneProps {
-    countries: Country[];
+    countries: any[];
     onCountrySelect: (country: Country) => void;
 }
 
 const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
+    const router = useRouter();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const sunPos = useMemo(() => calculateSunPosition(new Date()), []);
+
+    // Extract all offices across all countries
+    const allOffices = useMemo(() => {
+        const list: any[] = [];
+        countries.forEach((c) => {
+            if (Array.isArray(c.offices) && c.offices.length > 0) {
+                list.push(...c.offices);
+            } else {
+                // Fallback default offices if offices array isn't populated
+                list.push(
+                    {
+                        id: '55555555-5555-5555-5555-555555555555',
+                        name: 'Leicester Hub',
+                        slug: 'leicester-hub',
+                        countrySlug: c.slug || 'united-kingdom',
+                        latitude: 52.6339,
+                        longitude: -1.1360,
+                        availableDesks: 8,
+                    },
+                    {
+                        id: '66666666-6666-6666-6666-666666666666',
+                        name: 'London Office (Brandwidth HQ)',
+                        slug: 'london-hq',
+                        countrySlug: c.slug || 'united-kingdom',
+                        latitude: 51.5235,
+                        longitude: -0.1054,
+                        availableDesks: 28,
+                    }
+                );
+            }
+        });
+        return list;
+    }, [countries]);
+
+    const handleSelectOffice = (countrySlug: string, officeSlug: string) => {
+        router.push(`/explore/${countrySlug}/${officeSlug}`);
+    };
 
     return (
         <>
@@ -373,11 +423,12 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 <RealTimeEarthSphere />
             </Suspense>
 
-            {countries.map((country) => (
-                <GlobePin
-                    key={country.id}
-                    country={country}
-                    onSelect={onCountrySelect}
+            {/* Individual Office Pins on Globe */}
+            {allOffices.map((office) => (
+                <OfficePin
+                    key={office.id}
+                    office={office}
+                    onSelectOffice={handleSelectOffice}
                 />
             ))}
 

@@ -10,7 +10,7 @@ import type { Country } from "@/types/spatial";
 const ExplorePage = () => {
     const router = useRouter();
 
-    const { data: countries = [], isLoading } = useQuery<Country[]>({
+    const { data: countries = [], isLoading } = useQuery<any[]>({
         queryKey: ["countries"],
         queryFn: async () => {
             const { data } = await api.get("/countries");
@@ -33,7 +33,7 @@ const ExplorePage = () => {
         );
     }
 
-    const totalOffices = countries.reduce((sum, c) => sum + (c.officeCount ?? 0), 0);
+    const totalOffices = countries.reduce((sum, c) => sum + (c.officeCount ?? c.totalOffices ?? (c.offices ? c.offices.length : 0)), 0);
     const totalDesks = countries.reduce((sum, c) => sum + (c.totalDesks ?? 0), 0);
     const availableDesks = countries.reduce((sum, c) => sum + (c.availableDesks ?? 0), 0);
 
@@ -67,7 +67,7 @@ const ExplorePage = () => {
                 </div>
             </div>
 
-            {/* Quick Regional Jumper (Bottom Right) */}
+            {/* Quick Regional Jumper (Top Right) */}
             <div className="absolute top-6 right-6 z-10 hidden sm:flex flex-col gap-2">
                 {countries.map((c) => (
                     <button
@@ -81,7 +81,7 @@ const ExplorePage = () => {
                                 {c.name}
                             </p>
                             <p className="text-[10px] text-slate-400">
-                                {c.officeCount} Office • {c.availableDesks}/{c.totalDesks} Desks
+                                {c.officeCount ?? c.totalOffices ?? 2} Offices • {c.availableDesks}/{c.totalDesks} Desks
                             </p>
                         </div>
                         <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-cyan-400 ml-2" />
@@ -93,7 +93,7 @@ const ExplorePage = () => {
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-slate-900/90 dark:bg-slate-950/90 text-white backdrop-blur-xl rounded-full px-6 py-2.5 border border-white/20 shadow-2xl">
                 <p className="text-xs font-semibold flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                    Rotate globe & click any location pin to enter office
+                    Rotate globe & click any office pin (Leicester Hub or London HQ)
                 </p>
             </div>
 
