@@ -9,6 +9,7 @@ import type { Country } from '@/types/spatial';
 
 /* ─── Helpers & Real-Time Solar Calculations ─────────────── */
 
+/** Converts Latitude / Longitude to 3D Sphere coordinates matching Three.js SphereGeometry UV mapping */
 const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector3 => {
     const phi = (90 - lat) * (Math.PI / 180);
     const theta = (lng + 180) * (Math.PI / 180);
@@ -19,17 +20,21 @@ const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector
     );
 };
 
-/** Calculate Sun position vector from current UTC time */
+/** Calculate exact astronomical Sun direction in Earth World Space from current UTC clock time */
 const calculateSunPosition = (date: Date = new Date(), radius: number = 300): THREE.Vector3 => {
     const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+    // Subsolar longitude in degrees (-180 to +180)
     const sunLng = -((utcHours - 12) * 15);
-    const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
+    
+    // Solar declination based on day of year (axial tilt between -23.44° and +23.44°)
+    const startOfYear = new Date(date.getFullYear(), 0, 0).getTime();
+    const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
     const sunLat = 23.44 * Math.sin(((dayOfYear - 80) / 365) * 2 * Math.PI);
 
     return latLngToVector3(sunLat, sunLng, radius);
 };
 
-/* ─── Custom Real-Time Day/Night Earth Shader ────────────── */
+/* ─── Physically Accurate Day/Night Earth Shader ──────────── */
 
 const EarthDayNightShader = {
     uniforms: {
@@ -40,12 +45,13 @@ const EarthDayNightShader = {
     },
     vertexShader: `
         varying vec2 vUv;
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
 
         void main() {
             vUv = uv;
-            vNormal = normalize(normalMatrix * normal);
+            // Calculate true world-space normal of the Earth sphere surface
+            vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
             vec4 worldPos = modelMatrix * vec4(position, 1.0);
             vWorldPosition = worldPos.xyz;
             gl_Position = projectionMatrix * viewMatrix * worldPos;
@@ -57,29 +63,37 @@ const EarthDayNightShader = {
         uniform vec3 sunDirection;
 
         varying vec2 vUv;
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
 
         void main() {
-            vec3 norm = normalize(vNormal);
+            vec3 worldNorm = normalize(vWorldNormal);
             vec3 sunNorm = normalize(sunDirection);
             
-            float sunDot = dot(norm, sunNorm);
+            // Dot product between true world surface normal and solar direction
+            float sunDot = dot(worldNorm, sunNorm);
+            
+            // Smooth transition along the terminator (sunset / sunrise boundary)
             float dayFactor = smoothstep(-0.15, 0.25, sunDot);
             
             vec4 dayColor = texture2D(dayTexture, vUv);
             vec4 nightColor = texture2D(nightTexture, vUv);
             
-            dayColor.rgb *= 1.4;
-            nightColor.rgb *= vec3(1.4, 1.2, 0.9) * 2.0;
+            // Brighten daylight surface and enhance warm night city glow
+            dayColor.rgb *= 1.45;
+            nightColor.rgb *= vec3(1.5, 1.25, 0.9) * 2.2;
             
+            // Blend day map with night lights based on sun illumination
             vec3 blended = mix(nightColor.rgb, dayColor.rgb, dayFactor);
             
-            float sunsetFactor = smoothstep(-0.1, 0.05, sunDot) * smoothstep(0.2, 0.05, sunDot);
-            vec3 sunsetColor = vec3(1.0, 0.5, 0.1) * sunsetFactor * 0.45;
+            // Golden atmospheric sunset/sunrise rim line along the day/night boundary
+            float sunsetFactor = smoothstep(-0.15, 0.05, sunDot) * smoothstep(0.25, 0.05, sunDot);
+            vec3 sunsetColor = vec3(1.0, 0.55, 0.15) * sunsetFactor * 0.5;
             
-            float viewDot = 1.0 - max(0.0, dot(normalize(-vWorldPosition), norm));
-            vec3 atmosphereColor = vec3(0.3, 0.6, 1.0) * pow(viewDot, 3.0) * max(0.25, dayFactor);
+            // Subtle Rayleigh blue atmospheric scattering on the sunlit limb
+            vec3 viewDir = normalize(-vWorldPosition);
+            float viewDot = 1.0 - max(0.0, dot(viewDir, worldNorm));
+            vec3 atmosphereColor = vec3(0.35, 0.65, 1.0) * pow(viewDot, 3.2) * max(0.2, dayFactor);
 
             gl_FragColor = vec4(blended + sunsetColor + atmosphereColor, 1.0);
         }
@@ -90,7 +104,6 @@ const EarthDayNightShader = {
 
 const RealTimeEarthSphere = () => {
     const meshRef = useRef<THREE.Mesh>(null);
-    const atmosphereRef = useRef<THREE.Mesh>(null);
 
     const [dayTexture, nightTexture, bumpTexture] = useTexture([
         '/textures/earth_day.jpg',
@@ -122,13 +135,13 @@ const RealTimeEarthSphere = () => {
 
     return (
         <group>
-            {/* Photorealistic Day/Night Earth */}
+            {/* Photorealistic Day/Night Earth Sphere */}
             <mesh ref={meshRef} material={shaderMaterial}>
                 <sphereGeometry args={[100, 64, 64]} />
             </mesh>
 
-            {/* Atmosphere Glow */}
-            <mesh ref={atmosphereRef} scale={[1.025, 1.025, 1.025]}>
+            {/* Atmosphere Halo */}
+            <mesh scale={[1.025, 1.025, 1.025]}>
                 <sphereGeometry args={[100, 48, 48]} />
                 <meshBasicMaterial
                     color="#60a5fa"
@@ -278,14 +291,14 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
 
     return (
         <>
-            {/* Real Sun Light */}
+            {/* Astronomical Directional Sunlight */}
             <directionalLight
                 position={[sunPos.x, sunPos.y, sunPos.z]}
                 intensity={3.2}
                 color="#fffcf2"
             />
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[-sunPos.x, -sunPos.y, -sunPos.z]} intensity={0.4} color="#60a5fa" />
+            <ambientLight intensity={0.55} />
+            <directionalLight position={[-sunPos.x, -sunPos.y, -sunPos.z]} intensity={0.35} color="#60a5fa" />
 
             {isDark && <Stars radius={350} depth={80} count={4000} factor={5} fade speed={0.4} />}
 

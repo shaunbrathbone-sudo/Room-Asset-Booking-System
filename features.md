@@ -32,4 +32,5 @@ Whenever a new feature is created, add an entry here with a unique sequential ID
 | FEAT-0021 | 2026-08-16 | Corporate Domain Whitelist Gate & Microsoft SSO | Domain security gate blocking unknown email domains on registration (/register) and Microsoft 365 Single Sign-On. | Completed |
 | FEAT-0022 | 2026-08-16 | Cloudfy Corporate Rebranding | Official Cloudfy Workspaces branding across navbar headers, explorer titles, footers, and metadata. | Completed |
 | FEAT-0023 | 2026-08-16 | Employee Profile Photo & Avatar System | Upload personal photo from device or choose corporate preset (/settings) with live display in Navbar and User Directory. | Completed |
+| FEAT-0024 | 2026-08-16 | Geographically-Locked Real-Time Day/Night Engine | World-space solar shader locking day/night terminator line to real UTC clock time while allowing 360° camera orbit. | Completed |
 <!-- Append new features above this line -->
