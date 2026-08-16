@@ -70,19 +70,14 @@ const EarthDayNightShader = {
             vec4 dayColor = texture2D(dayTexture, vUv);
             vec4 nightColor = texture2D(nightTexture, vUv);
             
-            // Brighten daylight
             dayColor.rgb *= 1.4;
-            
-            // Night lights glow warmly
             nightColor.rgb *= vec3(1.4, 1.2, 0.9) * 2.0;
             
             vec3 blended = mix(nightColor.rgb, dayColor.rgb, dayFactor);
             
-            // Golden sunset line
             float sunsetFactor = smoothstep(-0.1, 0.05, sunDot) * smoothstep(0.2, 0.05, sunDot);
             vec3 sunsetColor = vec3(1.0, 0.5, 0.1) * sunsetFactor * 0.45;
             
-            // Atmosphere rim scattering
             float viewDot = 1.0 - max(0.0, dot(normalize(-vWorldPosition), norm));
             vec3 atmosphereColor = vec3(0.3, 0.6, 1.0) * pow(viewDot, 3.0) * max(0.25, dayFactor);
 
@@ -146,7 +141,7 @@ const RealTimeEarthSphere = () => {
     );
 };
 
-/* ─── Sci-Fi Beacon Location Pin ─────────────────────────── */
+/* ─── Compact Sci-Fi Beacon Location Pin (1/4 Scale) ──────── */
 
 interface GlobePinProps {
     country: Country;
@@ -155,7 +150,7 @@ interface GlobePinProps {
 
 const GlobePin = ({ country, onSelect }: GlobePinProps) => {
     const position = useMemo(
-        () => latLngToVector3(country.latitude, country.longitude, 100.5),
+        () => latLngToVector3(country.latitude, country.longitude, 100.2),
         [country.latitude, country.longitude]
     );
 
@@ -164,21 +159,21 @@ const GlobePin = ({ country, onSelect }: GlobePinProps) => {
 
     useFrame((state) => {
         if (meshRef.current) {
-            const scale = 1 + Math.sin(state.clock.elapsedTime * 3.5) * 0.2;
-            meshRef.current.scale.setScalar(hovered ? 2.5 : scale * 1.5);
+            const scale = 1 + Math.sin(state.clock.elapsedTime * 4) * 0.2;
+            meshRef.current.scale.setScalar(hovered ? 1.4 : scale * 0.9);
         }
     });
 
     return (
         <group position={position}>
-            {/* Core Beacon Light */}
+            {/* Compact Pin Sphere (Tiny dot right over Leicester) */}
             <mesh
                 ref={meshRef}
                 onPointerEnter={() => setHovered(true)}
                 onPointerLeave={() => setHovered(false)}
                 onClick={() => onSelect(country)}
             >
-                <sphereGeometry args={[2.5, 32, 32]} />
+                <sphereGeometry args={[0.9, 20, 20]} />
                 <meshStandardMaterial
                     color={hovered ? '#fbbf24' : '#ef4444'}
                     emissive={hovered ? '#f59e0b' : '#dc2626'}
@@ -187,44 +182,53 @@ const GlobePin = ({ country, onSelect }: GlobePinProps) => {
                 />
             </mesh>
 
-            {/* Radar Wave Ring */}
+            {/* Compact Subtle Radar Ring */}
             <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[3, 6, 32]} />
+                <ringGeometry args={[1.1, 2.0, 24]} />
                 <meshBasicMaterial
                     color="#ef4444"
                     transparent
-                    opacity={0.6}
+                    opacity={0.4}
                     side={THREE.DoubleSide}
                 />
             </mesh>
 
-            {/* Floating Location Tag */}
+            {/* Mini Vertical Beacon Stem Line */}
+            <line>
+                <bufferGeometry>
+                    <bufferAttribute
+                        attach="attributes-position"
+                        args={[new Float32Array([0, 0, 0, 0, 3.5, 0]), 3]}
+                    />
+                </bufferGeometry>
+                <lineBasicMaterial color="#38bdf8" linewidth={1.5} transparent opacity={0.75} />
+            </line>
+
+            {/* 1/4 Scale Compact Micro-Pill Tag */}
             <Html
-                position={[0, 9, 0]}
-                distanceFactor={150}
+                position={[0, 4.2, 0]}
+                distanceFactor={45}
                 center
-                style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
+                style={{ pointerEvents: 'auto', cursor: 'pointer' }}
             >
                 <button
                     onClick={() => onSelect(country)}
-                    className="group flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white border-2 border-amber-400 shadow-2xl shadow-amber-500/30 hover:scale-110 hover:border-amber-300 transition-all whitespace-nowrap"
+                    className="group flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-950/90 backdrop-blur-md text-white border border-amber-400/70 shadow-md shadow-amber-500/20 hover:scale-110 hover:border-amber-300 transition-transform whitespace-nowrap"
                 >
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-                    <div className="text-left">
-                        <p className="font-black text-xs tracking-wide text-white">
-                            🇬🇧 {country.name}
-                        </p>
-                        <p className="text-[10px] text-amber-300 font-semibold">
-                            {country.officeCount} Office • {country.availableDesks} Desks Available
-                        </p>
-                    </div>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping flex-shrink-0" />
+                    <span className="text-[10px] font-bold text-white tracking-tight">
+                        🇬🇧 Leicester Hub
+                    </span>
+                    <span className="text-[9px] text-amber-300 font-semibold px-1 rounded bg-white/10">
+                        {country.availableDesks}
+                    </span>
                 </button>
             </Html>
         </group>
     );
 };
 
-/* ─── Focused Camera Controller ──────────────────────────── */
+/* ─── Focused Camera Rig ──────────────────────────────────── */
 
 const FocusedCameraRig = ({ countries }: { countries: Country[] }) => {
     const { camera } = useThree();
@@ -232,11 +236,9 @@ const FocusedCameraRig = ({ countries }: { countries: Country[] }) => {
 
     useEffect(() => {
         if (countries.length === 1) {
-            // Single country portfolio: Focus camera directly on that country (e.g. UK: lat 52.6, lng -1.1)
             const targetCountry = countries[0];
             const targetVec = latLngToVector3(targetCountry.latitude, targetCountry.longitude, 100);
             
-            // Position camera looking directly straight down at the UK at optimal close distance
             const camDistance = 165;
             const camPos = targetVec.clone().normalize().multiplyScalar(camDistance);
             
