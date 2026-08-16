@@ -23,10 +23,8 @@ const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector
 /** Calculate exact astronomical Sun direction in Earth World Space from current UTC clock time */
 const calculateSunPosition = (date: Date = new Date(), radius: number = 300): THREE.Vector3 => {
     const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-    // Subsolar longitude in degrees (-180 to +180)
     const sunLng = -((utcHours - 12) * 15);
     
-    // Solar declination based on day of year (axial tilt between -23.44° and +23.44°)
     const startOfYear = new Date(date.getFullYear(), 0, 0).getTime();
     const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
     const sunLat = 23.44 * Math.sin(((dayOfYear - 80) / 365) * 2 * Math.PI);
@@ -34,7 +32,80 @@ const calculateSunPosition = (date: Date = new Date(), radius: number = 300): TH
     return latLngToVector3(sunLat, sunLng, radius);
 };
 
-/* ─── Physically Accurate Day/Night Earth Shader ──────────── */
+/* ─── Country Borders Line Layer ──────────────────────────── */
+
+const WorldCountryBorders = () => {
+    const [bordersGeo, setBordersGeo] = useState<THREE.BufferGeometry | null>(null);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        fetch('/data/world_borders.json')
+            .then((res) => res.json())
+            .then((data) => {
+                if (!isMounted || !data.features) return;
+
+                const points: number[] = [];
+
+                const processRing = (ring: number[][]) => {
+                    for (let i = 0; i < ring.length - 1; i++) {
+                        const p1 = ring[i];
+                        const p2 = ring[i + 1];
+
+                        const v1 = latLngToVector3(p1[1], p1[0], 100.18);
+                        const v2 = latLngToVector3(p2[1], p2[0], 100.18);
+
+                        points.push(v1.x, v1.y, v1.z);
+                        points.push(v2.x, v2.y, v2.z);
+                    }
+                };
+
+                for (const feature of data.features) {
+                    const geom = feature.geometry;
+                    if (!geom) continue;
+
+                    if (geom.type === 'Polygon') {
+                        for (const ring of geom.coordinates) {
+                            processRing(ring);
+                        }
+                    } else if (geom.type === 'MultiPolygon') {
+                        for (const polygon of geom.coordinates) {
+                            for (const ring of polygon) {
+                                processRing(ring);
+                            }
+                        }
+                    }
+                }
+
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute(
+                    'position',
+                    new THREE.Float32BufferAttribute(points, 3)
+                );
+                setBordersGeo(geometry);
+            })
+            .catch((err) => console.error('Error loading world borders GeoJSON:', err));
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    if (!bordersGeo) return null;
+
+    return (
+        <lineSegments geometry={bordersGeo}>
+            <lineBasicMaterial
+                color="#38bdf8"
+                transparent
+                opacity={0.4}
+                depthWrite={false}
+            />
+        </lineSegments>
+    );
+};
+
+/* ─── Custom Real-Time Day/Night Earth Shader ────────────── */
 
 const EarthDayNightShader = {
     uniforms: {
@@ -50,7 +121,6 @@ const EarthDayNightShader = {
 
         void main() {
             vUv = uv;
-            // Calculate true world-space normal of the Earth sphere surface
             vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
             vec4 worldPos = modelMatrix * vec4(position, 1.0);
             vWorldPosition = worldPos.xyz;
@@ -70,27 +140,20 @@ const EarthDayNightShader = {
             vec3 worldNorm = normalize(vWorldNormal);
             vec3 sunNorm = normalize(sunDirection);
             
-            // Dot product between true world surface normal and solar direction
             float sunDot = dot(worldNorm, sunNorm);
-            
-            // Smooth transition along the terminator (sunset / sunrise boundary)
             float dayFactor = smoothstep(-0.15, 0.25, sunDot);
             
             vec4 dayColor = texture2D(dayTexture, vUv);
             vec4 nightColor = texture2D(nightTexture, vUv);
             
-            // Brighten daylight surface and enhance warm night city glow
             dayColor.rgb *= 1.45;
             nightColor.rgb *= vec3(1.5, 1.25, 0.9) * 2.2;
             
-            // Blend day map with night lights based on sun illumination
             vec3 blended = mix(nightColor.rgb, dayColor.rgb, dayFactor);
             
-            // Golden atmospheric sunset/sunrise rim line along the day/night boundary
             float sunsetFactor = smoothstep(-0.15, 0.05, sunDot) * smoothstep(0.25, 0.05, sunDot);
             vec3 sunsetColor = vec3(1.0, 0.55, 0.15) * sunsetFactor * 0.5;
             
-            // Subtle Rayleigh blue atmospheric scattering on the sunlit limb
             vec3 viewDir = normalize(-vWorldPosition);
             float viewDot = 1.0 - max(0.0, dot(viewDir, worldNorm));
             vec3 atmosphereColor = vec3(0.35, 0.65, 1.0) * pow(viewDot, 3.2) * max(0.2, dayFactor);
@@ -139,6 +202,9 @@ const RealTimeEarthSphere = () => {
             <mesh ref={meshRef} material={shaderMaterial}>
                 <sphereGeometry args={[100, 64, 64]} />
             </mesh>
+
+            {/* Country Borders Line Overlay */}
+            <WorldCountryBorders />
 
             {/* Atmosphere Halo */}
             <mesh scale={[1.025, 1.025, 1.025]}>
