@@ -28,23 +28,20 @@ const initSqlite = () => {
         sqliteDb = new DatabaseSync(dbPath);
         console.log(`[DB] Connected to SQLite database at: ${dbPath}`);
 
-        // Apply SQLite Schema & Seed
         const schemaPath = path.join(__dirname, '..', 'db', 'schema.sql');
         const seedPath = path.join(__dirname, '..', 'db', 'seed.sql');
 
         if (fs.existsSync(schemaPath)) {
             const schemaSql = fs.readFileSync(schemaPath, 'utf-8');
             sqliteDb.exec(schemaSql);
-            console.log('[DB] SQLite Schema applied successfully.');
         }
 
         if (fs.existsSync(seedPath)) {
             const seedSql = fs.readFileSync(seedPath, 'utf-8');
             try {
                 sqliteDb.exec(seedSql);
-                console.log('[DB] SQLite Seed data applied.');
             } catch (err) {
-                // Ignore duplicate constraint warnings on re-runs
+                // Ignore duplicates
             }
         }
     }
@@ -64,28 +61,23 @@ const createSqliteRequest = (): UniversalRequest => {
 
             // Transform MSSQL SQL text to SQLite compatible SQL
             let transformed = sqlText
-                // Date functions
                 .replace(/GETUTCDATE\(\)/gi, "datetime('now')")
                 .replace(/DATEADD\(minute,\s*@?([a-zA-Z0-9_]+),\s*([^)]+)\)/gi, "datetime($2, '+' || @$1 || ' minutes')")
                 .replace(/DATEADD\(hour,\s*([0-9]+),\s*GETUTCDATE\(\)\)/gi, "datetime('now', '+$1 hours')")
-                .replace(/TOP\s*\(\s*@?([a-zA-Z0-9_]+)\s*\)/gi, "") // We'll handle TOP via regex or LIMIT
-                .replace(/TOP\s+([0-9]+)/gi, "")
+                .replace(/TOP\s*\(\s*@?([a-zA-Z0-9_]+)\s*\)/gi, "")
                 .replace(/\[([^\]]+)\]/g, '"$1"')
                 .replace(/u\.first_name\s*\+\s*' '\s*\+\s*u\.last_name/gi, "u.first_name || ' ' || u.last_name");
 
-            // Handle TOP @limit -> LIMIT @limit
-            const topMatch = sqlText.match(/TOP\s*\(\s*@?([a-zA-Z0-9_]+)\s*\)/i);
-            if (topMatch) {
-                const limitParam = topMatch[1];
-                if (!transformed.toLowerCase().includes('limit')) {
-                    transformed += ` LIMIT @${limitParam}`;
-                }
+            // Extract numeric TOP N and append as LIMIT N
+            const numTopMatch = sqlText.match(/TOP\s+([0-9]+)/i);
+            transformed = transformed.replace(/TOP\s+[0-9]+/gi, "");
+            if (numTopMatch && !transformed.toLowerCase().includes('limit')) {
+                transformed += ` LIMIT ${numTopMatch[1]}`;
             }
 
             // Convert @named params to :named params for SQLite
             let sqliteSql = transformed.replace(/@([a-zA-Z0-9_]+)/g, ':$1');
 
-            // Convert booleans / numbers
             const bindObj: Record<string, any> = {};
             for (const [k, v] of Object.entries(params)) {
                 if (typeof v === 'boolean') {
@@ -98,7 +90,6 @@ const createSqliteRequest = (): UniversalRequest => {
             }
 
             try {
-                // Determine if query is SELECT or Mutation
                 const trimmed = sqliteSql.trim().toUpperCase();
                 if (trimmed.startsWith('SELECT') || trimmed.startsWith('WITH')) {
                     const stmt = sqliteDb.prepare(sqliteSql);
@@ -120,7 +111,6 @@ const createSqliteRequest = (): UniversalRequest => {
 };
 
 export const getPool = async (): Promise<UniversalPool> => {
-    // Attempt MSSQL first
     if (process.env.DB_HOST && process.env.DB_HOST !== 'localhost_disabled') {
         try {
             if (!mssqlPool) {
@@ -144,12 +134,10 @@ export const getPool = async (): Promise<UniversalPool> => {
             }
             return mssqlPool;
         } catch {
-            // MSSQL server not reachable; fall back to SQLite
             activeDriver = 'sqlite';
         }
     }
 
-    // Default: SQLite Database Sync
     initSqlite();
     return {
         request: createSqliteRequest,

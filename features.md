@@ -26,4 +26,6 @@ Whenever a new feature is created, add an entry here with a unique sequential ID
 | FEAT-0015 | 2026-08-16 | Wall-Mounted Room Tablet Kiosk Mode | High-contrast 7"-10" PoE wall display route (/kiosk/rooms/[id]) with live OCCUPIED/AVAILABLE LED status and 1-touch booking. | Completed |
 | FEAT-0016 | 2026-08-16 | Floating Feedback FAB Quick Launcher | Global floating action button (FeedbackFAB.tsx) with instant bug, feature, and facility issue submission. | Completed |
 | FEAT-0017 | 2026-08-16 | Space Utilization & Workplace Analytics | Department occupancy ratios, meeting room turnover, fleet car metrics, and ghost booking recovery tracker (/admin/analytics). | Completed |
+| FEAT-0018 | 2026-08-16 | Office Welcome Guide & Induction Portal | Digital guide (/explore/[countrySlug]/[officeSlug]/guide) with arrival instructions, commuting, amenities, and floor guides. | Completed |
+| FEAT-0019 | 2026-08-16 | Office Guide Live CMS & Admin Editor | Full admin CMS (/admin/offices/[slug]/guide) to add, update, and publish induction booklet topics and guidelines. | Completed |
 <!-- Append new features above this line -->

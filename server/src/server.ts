@@ -2,8 +2,6 @@
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
 import { getPool, closePool } from './config/database';
 
 // Route imports
@@ -17,9 +15,11 @@ import feedbackRoutes from './routes/feedback.routes';
 import bugRoutes from './routes/bug.routes';
 import adminRoutes from './routes/admin.routes';
 import kioskRoutes from './routes/kiosk.routes';
+import guideRoutes from './routes/guide.routes';
 
 // Services
 import { initGhostBookingScheduler } from './services/ghostBooking.service';
+import { seedGuide } from './db/seedGuide';
 
 dotenv.config();
 
@@ -51,6 +51,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/bugs', bugRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/kiosk', kioskRoutes);
+app.use('/api', guideRoutes);
 
 // ── Health Check ────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -61,6 +62,17 @@ app.get('/api/health', (_req, res) => {
 const applySchema = async (): Promise<void> => {
     try {
         const pool = await getPool();
+        await pool.request().query(`
+            CREATE TABLE IF NOT EXISTS office_guides (
+                office_id       TEXT PRIMARY KEY,
+                title           TEXT NOT NULL,
+                subtitle        TEXT,
+                content_json    TEXT NOT NULL,
+                updated_by      TEXT,
+                updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        `);
+        await seedGuide();
         console.log('[DB] Database initialized successfully.');
     } catch (err) {
         console.error('[DB] Failed to initialize database:', (err as Error).message);
