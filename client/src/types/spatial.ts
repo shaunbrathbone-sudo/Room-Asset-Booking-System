@@ -129,3 +129,21 @@ export interface SpatialNavigationState {
     floorSlug?: string;
     resourceId?: string;
 }
+
+export interface Asset {
+    id: string;
+    officeId: string;
+    category: 'vehicle' | 'av_equipment' | 'loaner_hardware';
+    name: string;
+    model: string | null;
+    identifierCode: string;
+    photoUrl: string | null;
+    description: string | null;
+    requiresApproval: boolean;
+    requiresLicense: boolean;
+    currentMileage: number | null;
+    fuelOrBattery: string | null;
+    specifications: string | null;
+    status: 'available' | 'in_use' | 'maintenance' | 'out_of_service';
+    isActive: boolean;
+}

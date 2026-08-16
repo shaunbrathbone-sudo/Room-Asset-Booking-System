@@ -11,6 +11,11 @@ import authRoutes from './routes/auth.routes';
 import spatialRoutes from './routes/spatial.routes';
 import searchRoutes from './routes/search.routes';
 import userRoutes from './routes/user.routes';
+import bookingRoutes from './routes/booking.routes';
+import assetRoutes from './routes/asset.routes';
+
+// Services
+import { initGhostBookingScheduler } from './services/ghostBooking.service';
 
 dotenv.config();
 
@@ -19,7 +24,7 @@ const PORT = parseInt(process.env.PORT || '5000', 10);
 
 // ── Security & Parsing ──────────────────────────────────────
 app.use(helmet({
-    contentSecurityPolicy: false,  // Allow inline scripts during dev
+    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
 }));
 
@@ -36,6 +41,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api', spatialRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/assets', assetRoutes);
 
 // ── Health Check ────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -51,7 +58,6 @@ const applySchema = async (): Promise<void> => {
         if (fs.existsSync(schemaPath)) {
             const schema = fs.readFileSync(schemaPath, 'utf-8');
 
-            // Split by GO-like batches (double newline before IF/CREATE)
             const statements = schema
                 .split(/\n\n(?=(?:IF|CREATE|INSERT|ALTER))/gi)
                 .filter((s) => s.trim().length > 0);
@@ -60,9 +66,8 @@ const applySchema = async (): Promise<void> => {
                 try {
                     await pool.request().query(stmt);
                 } catch (err) {
-                    // Ignore errors for IF NOT EXISTS patterns and duplicate indexes
                     const msg = (err as Error).message;
-                    if (!msg.includes('already exists') && !msg.includes('duplicate')) {
+                    if (!msg.includes('already exists') && !msg.includes('duplicate') && !msg.includes('already has')) {
                         console.warn('[DB] Schema statement warning:', msg.substring(0, 200));
                     }
                 }
@@ -76,9 +81,14 @@ const applySchema = async (): Promise<void> => {
 };
 
 // ── Start Server ────────────────────────────────────────────
+let ghostScheduler: NodeJS.Timeout | null = null;
+
 const start = async (): Promise<void> => {
     try {
         await applySchema();
+
+        // Start ghost booking scheduler (checks every 60s)
+        ghostScheduler = initGhostBookingScheduler(60000);
 
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode.`);
@@ -92,6 +102,7 @@ const start = async (): Promise<void> => {
 // ── Graceful Shutdown ───────────────────────────────────────
 const shutdown = async (signal: string): Promise<void> => {
     console.log(`\n[${signal}] Shutting down gracefully...`);
+    if (ghostScheduler) clearInterval(ghostScheduler);
     await closePool();
     process.exit(0);
 };

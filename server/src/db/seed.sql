@@ -127,3 +127,21 @@ INSERT INTO amenities (zone_id, type, name, x, y) VALUES
 (@Zone1FKitchen, 'kitchen', 'First Floor Kitchen', -2, -10),
 (@Zone1FKitchen, 'toilet', 'Restrooms (1F)', 2, -10),
 (@Zone1FKitchen, 'printer', 'Network Print Station', 5, -10);
+
+
+-- ──────────────────────────────────────────────────────────────
+-- 7. Shared Corporate Assets Seed (Leicester Hub)
+-- ──────────────────────────────────────────────────────────────
+DECLARE @AssetCar1 UNIQUEIDENTIFIER = NEWID();
+DECLARE @AssetCar2 UNIQUEIDENTIFIER = NEWID();
+DECLARE @AssetProj UNIQUEIDENTIFIER = NEWID();
+DECLARE @AssetVR UNIQUEIDENTIFIER = NEWID();
+DECLARE @AssetLaptop UNIQUEIDENTIFIER = NEWID();
+
+IF NOT EXISTS (SELECT * FROM assets WHERE office_id = @OfficeLeicester)
+INSERT INTO assets (id, office_id, category, name, model, identifier_code, description, requires_approval, requires_license, current_mileage, fuel_or_battery, specifications, status) VALUES
+(@AssetCar1, @OfficeLeicester, 'vehicle', 'Pool Car - Tesla Model 3', 'Model 3 Long Range', 'LE24 EVT', 'Company pool vehicle for client visits and site inspections.', 1, 1, 14250, '88% Battery', 'Electric, Dual Motor AWD, Autopilot enabled, Range ~340mi', 'available'),
+(@AssetCar2, @OfficeLeicester, 'vehicle', 'Pool Car - Skoda Octavia Estate', 'Octavia SE Technology 2.0 TDI', 'LE73 DTE', 'Spacious estate car for team travel and cargo transport.', 1, 1, 28900, 'Diesel (3/4 Tank)', '2.0L Diesel, Manual, Large Boot Capacity, Sat Nav', 'available'),
+(@AssetProj, @OfficeLeicester, 'av_equipment', 'Portable 4K Laser Projector', 'Epson EpiqVision Ultra EF-12', 'AV-PROJ-01', 'High-brightness laser projector with built-in Yamaha audio.', 0, 0, NULL, NULL, '4K PRO-UHD, 1000 Lumens, HDMI 2.1, USB-C, Bluetooth Audio', 'available'),
+(@AssetVR, @OfficeLeicester, 'av_equipment', 'Meta Quest Pro VR Demo Rig', 'Meta Quest Pro 256GB', 'AV-VR-01', 'Enterprise virtual reality headset for 3D walkthroughs & client demos.', 1, 0, NULL, NULL, '256GB Storage, Face & Eye Tracking, Touch Pro Controllers', 'available'),
+(@AssetLaptop, @OfficeLeicester, 'loaner_hardware', 'Emergency Loaner Laptop (MacBook Pro)', 'MacBook Pro 14" M3 Pro', 'IT-LNR-01', 'Emergency loaner machine for developers and engineers.', 0, 0, NULL, NULL, 'Apple M3 Pro (12-Core CPU, 18-Core GPU), 36GB RAM, 1TB SSD', 'available');

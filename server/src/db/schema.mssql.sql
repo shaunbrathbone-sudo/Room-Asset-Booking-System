@@ -223,3 +223,71 @@ CREATE INDEX IX_users_tenant ON users(tenant_id);
 CREATE INDEX IX_bookings_user ON bookings(user_id);
 CREATE INDEX IX_bookings_resource ON bookings(resource_type, resource_id);
 CREATE INDEX IX_bookings_time ON bookings(start_time, end_time);
+
+-- ============================================================
+-- Phase 2 Database Schema Additions
+-- ============================================================
+
+-- ──────────────────────────────────────────────────────────────
+-- ASSETS — Shared Fleet Vehicles, AV Equipment, Loaner Hardware
+-- ──────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'assets')
+CREATE TABLE assets (
+    id                  UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    office_id           UNIQUEIDENTIFIER NOT NULL REFERENCES offices(id),
+    category            NVARCHAR(50)     NOT NULL CHECK (category IN ('vehicle', 'av_equipment', 'loaner_hardware')),
+    name                NVARCHAR(200)    NOT NULL,
+    model               NVARCHAR(200)    NULL,
+    identifier_code     NVARCHAR(100)    NOT NULL UNIQUE, -- e.g. License Plate "AB24 CDE" or Asset Tag "AV-PROJ-01"
+    photo_url           NVARCHAR(500)    NULL,
+    description         NVARCHAR(1000)   NULL,
+    requires_approval   BIT              NOT NULL DEFAULT 0,
+    requires_license    BIT              NOT NULL DEFAULT 0, -- Mandatory driving license upload for vehicles
+    current_mileage     INT              NULL,               -- For fleet vehicles
+    fuel_or_battery     NVARCHAR(50)     NULL,               -- e.g. "85% Battery", "Petrol (Full)"
+    specifications      NVARCHAR(MAX)    NULL,               -- JSON or text specs (laser 4K, 32GB RAM, etc.)
+    status              NVARCHAR(30)     NOT NULL DEFAULT 'available'
+                        CHECK (status IN ('available', 'in_use', 'maintenance', 'out_of_service')),
+    is_active           BIT              NOT NULL DEFAULT 1,
+    created_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+    updated_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE()
+);
+
+-- ──────────────────────────────────────────────────────────────
+-- SYSTEM_CONFIGS — Dynamic admin settings (Ghost bookings, grace period)
+-- ──────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'system_configs')
+CREATE TABLE system_configs (
+    config_key          NVARCHAR(100) PRIMARY KEY,
+    config_value        NVARCHAR(MAX) NOT NULL,
+    description         NVARCHAR(500) NULL,
+    updated_at          DATETIME2     NOT NULL DEFAULT GETUTCDATE()
+);
+
+-- Seed default ghost booking configs (Disabled by default per PRD 5.4)
+IF NOT EXISTS (SELECT * FROM system_configs WHERE config_key = 'ghost_booking_enabled')
+INSERT INTO system_configs (config_key, config_value, description) VALUES
+('ghost_booking_enabled', 'false', 'Auto-release booking if user has not checked in within grace period'),
+('ghost_booking_grace_mins', '15', 'Check-in grace period in minutes before auto-releasing'),
+('reminder_email_hours_prior', '24', 'Hours before booking to send reminder email with 1-click cancel');
+
+-- ──────────────────────────────────────────────────────────────
+-- EXTEND BOOKINGS TABLE — Cancellation tokens, check-in QR & vehicle logs
+-- ──────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('bookings') AND name = 'cancel_token')
+BEGIN
+    ALTER TABLE bookings ADD
+        cancel_token        NVARCHAR(200)    NULL,
+        checkin_token       NVARCHAR(200)    NULL,
+        checkin_time        DATETIME2        NULL,
+        license_image_url   NVARCHAR(500)    NULL,
+        start_mileage       INT              NULL,
+        end_mileage         INT              NULL,
+        condition_notes     NVARCHAR(1000)   NULL,
+        external_event_id   NVARCHAR(200)    NULL; -- For Graph API Exchange/Bookings sync
+END;
+
+CREATE INDEX IX_assets_office ON assets(office_id);
+CREATE INDEX IX_assets_category ON assets(category);
+CREATE INDEX IX_bookings_cancel_token ON bookings(cancel_token);
+CREATE INDEX IX_bookings_checkin_token ON bookings(checkin_token);

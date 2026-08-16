@@ -15,4 +15,9 @@ Whenever a new feature is created, add an entry here with a unique sequential ID
 | FEAT-0004 | 2026-08-16 | Universal Direct Search Engine | Typeahead search across desks, meeting rooms, offices, and colleagues with deep navigation. | Completed |
 | FEAT-0005 | 2026-08-16 | User Personalisation & Smart Landing | User home office preferences and smart automatic landing redirect upon sign-in. | Completed |
 | FEAT-0006 | 2026-08-16 | Leicester 17 Friar Lane Seed Data | Seed script for 2 floors, 31 desks (hot, flexible, dev, projects, support, leadership), and 2 meeting rooms. | Completed |
+| FEAT-0007 | 2026-08-16 | Interactive 7/14-Day Timeline Booking Drawer | Drag/click 30-minute interval selection, presets (morning/afternoon/full day), and real-time conflict checking. | Completed |
+| FEAT-0008 | 2026-08-16 | Dedicated Shared Corporate Assets Module | Filterable catalog for Fleet Vehicles, High-Value AV Equipment, and Loaner Hardware with license verification. | Completed |
+| FEAT-0009 | 2026-08-16 | Check-In & Ghost Booking Engine | QR / tokenized check-in with 15-minute configurable grace period auto-release background scheduler. | Completed |
+| FEAT-0010 | 2026-08-16 | Pre-Event Reminder & 1-Click Cancel | 24-hour pre-event reminder service with secure tokenized 1-click cancellation URL. | Completed |
+| FEAT-0011 | 2026-08-16 | Microsoft 365 / Bookings Sync Adapter | Two-way calendar sync adapter for Exchange room mailboxes and Microsoft Bookings business API. | Completed |
 <!-- Append new features above this line -->
