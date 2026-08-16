@@ -221,7 +221,7 @@ const RealTimeEarthSphere = () => {
     );
 };
 
-/* ─── Geographic Side HUD Office Pin ──────────────────────── */
+/* ─── Geographic Side HUD Office Pin (Clean Gap Offset) ──── */
 
 interface OfficePinProps {
     office: {
@@ -247,9 +247,9 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
         [office.latitude, office.longitude]
     );
 
-    // Label is placed geographically to the East (right) of the pin over the North Sea
-    const labelLngOffset = isLondon ? 3.6 : 3.2;
-    const labelLatOffset = isLondon ? -0.3 : 0.4;
+    // Label is placed with a comfortable clean gap to the East (right) over the North Sea
+    const labelLngOffset = isLondon ? 6.2 : 5.8;
+    const labelLatOffset = isLondon ? -0.2 : 0.2;
     const labelPos = useMemo(
         () => latLngToVector3(office.latitude + labelLatOffset, office.longitude + labelLngOffset, 100.5),
         [office.latitude, office.longitude, isLondon, labelLatOffset, labelLngOffset]
@@ -287,7 +287,7 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
                     color={isLondon ? '#38bdf8' : '#f59e0b'}
                     linewidth={1.5}
                     transparent
-                    opacity={0.85}
+                    opacity={0.75}
                 />
             </line>
 
@@ -320,7 +320,7 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
                 </mesh>
             </group>
 
-            {/* Side-Positioned Micro HUD Tag (To the East of the Pin) */}
+            {/* Side-Positioned Micro HUD Tag with Clean Gap */}
             <group position={labelPos}>
                 <Html
                     distanceFactor={45}
@@ -447,7 +447,7 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 <RealTimeEarthSphere />
             </Suspense>
 
-            {/* Individual Office Pins with Side Geographic Labels */}
+            {/* Individual Office Pins with Clean Gap Side Labels */}
             {allOffices.map((office) => (
                 <OfficePin
                     key={office.id}
