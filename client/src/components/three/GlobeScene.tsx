@@ -221,7 +221,7 @@ const RealTimeEarthSphere = () => {
     );
 };
 
-/* ─── Individual Office Location Pin (1/4 Scale) ─────────── */
+/* ─── Individual Office Location Pin (Side HUD Label) ────── */
 
 interface OfficePinProps {
     office: {
@@ -256,6 +256,10 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
     const isLondon = office.slug.includes('london');
     const badgeLabel = isLondon ? '🇬🇧 London HQ' : '🇬🇧 Leicester Hub';
 
+    // Stagger side label positions to avoid overlap between Leicester and London
+    const sideOffsetX = isLondon ? 3.0 : 3.0;
+    const sideOffsetY = isLondon ? -0.8 : 0.8;
+
     return (
         <group position={position}>
             {/* Compact Pin Sphere */}
@@ -267,8 +271,8 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
             >
                 <sphereGeometry args={[0.8, 20, 20]} />
                 <meshStandardMaterial
-                    color={hovered ? '#fbbf24' : isLondon ? '#3b82f6' : '#ef4444'}
-                    emissive={hovered ? '#f59e0b' : isLondon ? '#2563eb' : '#dc2626'}
+                    color={hovered ? '#fbbf24' : isLondon ? '#38bdf8' : '#ef4444'}
+                    emissive={hovered ? '#f59e0b' : isLondon ? '#0284c7' : '#dc2626'}
                     emissiveIntensity={3}
                     roughness={0.1}
                 />
@@ -276,42 +280,42 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
 
             {/* Radar Pulsing Ring */}
             <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[1.0, 1.8, 24]} />
+                <ringGeometry args={[0.9, 1.6, 24]} />
                 <meshBasicMaterial
-                    color={isLondon ? '#3b82f6' : '#ef4444'}
+                    color={isLondon ? '#38bdf8' : '#ef4444'}
                     transparent
                     opacity={0.4}
                     side={THREE.DoubleSide}
                 />
             </mesh>
 
-            {/* Vertical Anchor Stem Line */}
+            {/* Horizontal Side Leader Stem Line */}
             <line>
                 <bufferGeometry>
                     <bufferAttribute
                         attach="attributes-position"
-                        args={[new Float32Array([0, 0, 0, 0, isLondon ? 3.0 : 4.5, 0]), 3]}
+                        args={[new Float32Array([0, 0, 0, sideOffsetX * 0.7, sideOffsetY, 0]), 3]}
                     />
                 </bufferGeometry>
-                <lineBasicMaterial color={isLondon ? '#60a5fa' : '#38bdf8'} linewidth={1.5} transparent opacity={0.75} />
+                <lineBasicMaterial color={isLondon ? '#38bdf8' : '#f59e0b'} linewidth={1.5} transparent opacity={0.8} />
             </line>
 
-            {/* 1/4 Scale Compact Micro-Pill Tag */}
+            {/* Side Positioned Micro-Tag */}
             <Html
-                position={[0, isLondon ? 3.6 : 5.1, 0]}
+                position={[sideOffsetX, sideOffsetY, 0]}
                 distanceFactor={45}
-                center
+                center={false}
                 style={{ pointerEvents: 'auto', cursor: 'pointer' }}
             >
                 <button
                     onClick={() => onSelectOffice(office.countrySlug, office.slug)}
-                    className="group flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-950/90 backdrop-blur-md text-white border border-amber-400/70 shadow-md shadow-amber-500/20 hover:scale-110 hover:border-amber-300 transition-transform whitespace-nowrap"
+                    className="group flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/95 backdrop-blur-md text-white border border-amber-400/80 shadow-lg shadow-amber-500/20 hover:scale-110 hover:border-amber-300 transition-transform whitespace-nowrap"
                 >
                     <span className={`w-1.5 h-1.5 rounded-full ${isLondon ? 'bg-cyan-400' : 'bg-emerald-400'} animate-ping flex-shrink-0`} />
                     <span className="text-[10px] font-bold text-white tracking-tight">
                         {badgeLabel}
                     </span>
-                    <span className="text-[9px] text-amber-300 font-semibold px-1 rounded bg-white/10">
+                    <span className="text-[9px] text-amber-300 font-semibold px-1 rounded bg-white/15">
                         {office.availableDesks ?? 8}
                     </span>
                 </button>
@@ -376,7 +380,6 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
             if (Array.isArray(c.offices) && c.offices.length > 0) {
                 list.push(...c.offices);
             } else {
-                // Fallback default offices if offices array isn't populated
                 list.push(
                     {
                         id: '55555555-5555-5555-5555-555555555555',
