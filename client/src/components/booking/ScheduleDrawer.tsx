@@ -7,6 +7,8 @@ import {
     AlertCircle, Sparkles, Repeat, ChevronRight, Sun, Sunset 
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useFavouriteDesks } from '@/hooks/useFavouriteDesks';
+import { Heart } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import type { Desk, MeetingRoom } from '@/types/spatial';
 
@@ -54,6 +56,7 @@ const WEEKDAYS = [
 export const ScheduleDrawer = ({ resource, resourceType, isOpen, onClose }: ScheduleDrawerProps) => {
     const queryClient = useQueryClient();
     const { isAuthenticated } = useAuth();
+    const { isFavourite, toggleFavourite } = useFavouriteDesks();
 
     const [isRecurringMode, setIsRecurringMode] = useState(false);
     const [selectedDays, setSelectedDays] = useState<number[]>([2, 4]); // Tue & Thu default
@@ -191,13 +194,26 @@ export const ScheduleDrawer = ({ resource, resourceType, isOpen, onClose }: Sche
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-                    aria-label="Close schedule drawer"
-                >
-                    <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                    {resourceType === 'desk' && resource && (
+                        <button
+                            type="button"
+                            onClick={() => toggleFavourite(resource.id)}
+                            className="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-500 transition-colors"
+                            title={isFavourite(resource.id) ? 'Saved in Favourite Desks' : 'Save as Favourite Desk'}
+                            aria-label={isFavourite(resource.id) ? 'Remove from Favourite Desks' : 'Add to Favourite Desks'}
+                        >
+                            <Heart className={'w-5 h-5 ' + (isFavourite(resource.id) ? 'fill-rose-500 text-rose-500' : '')} />
+                        </button>
+                    )}
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+                        aria-label="Close schedule drawer"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
 
             {/* Mode Switcher */}

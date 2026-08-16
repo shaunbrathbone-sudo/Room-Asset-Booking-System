@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, MapPin, Monitor, Tv, Car, Laptop, CheckCircle2, AlertCircle, Trash2, QrCode, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, MapPin, Monitor, Tv, Car, Laptop, CheckCircle2, AlertCircle, Trash2, QrCode, ExternalLink, Heart, Star, Sparkles, Zap } from 'lucide-react';
+import { useFavouriteDesks } from '@/hooks/useFavouriteDesks';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { BookingDetails } from '@/types/booking';
 
@@ -28,6 +30,7 @@ const BookingsPage = () => {
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'all'>('upcoming');
     const [qrModalBooking, setQrModalBooking] = useState<BookingDetails | null>(null);
+    const { favourites, toggleFavourite, isLoading: favLoading } = useFavouriteDesks();
 
     const { data: bookings = [], isLoading } = useQuery<BookingDetails[]>({
         queryKey: ['userBookings'],
@@ -65,6 +68,83 @@ const BookingsPage = () => {
 
     return (
         <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* My Favourite Desks & 1-Click Repeat Booking */}
+            {favourites.length > 0 && (
+                <div className="mb-10 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/30 dark:via-amber-950/10 border border-amber-300/60 dark:border-amber-800/60 shadow-xl space-y-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/60 dark:border-amber-800/40 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 rounded-2xl bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20">
+                                <Star className="w-5 h-5 fill-slate-950" />
+                            </div>
+                            <div>
+                                <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 tracking-wider flex items-center gap-1">
+                                    <Sparkles className="w-3.5 h-3.5" /> Quick Rebooking
+                                </span>
+                                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                                    My Favourite Desks & Workstations
+                                </h2>
+                            </div>
+                        </div>
+
+                        <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                            {favourites.length} Saved {favourites.length === 1 ? 'Station' : 'Stations'}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {favourites.map((fav) => (
+                            <div
+                                key={fav.desk_id}
+                                className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md hover:border-amber-400 transition-all flex flex-col justify-between space-y-4 group"
+                            >
+                                <div className="space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div>
+                                            <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                                {fav.desk_code}
+                                            </span>
+                                            <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                                                {fav.desk_label || 'Dedicated Workstation'}
+                                            </h3>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleFavourite(fav.desk_id)}
+                                            className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                            title="Remove from favourites"
+                                            aria-label="Remove from favourites"
+                                        >
+                                            <Heart className="w-4 h-4 fill-rose-500" />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                                        <div className="flex items-center gap-1.5 font-medium">
+                                            <MapPin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                                            <span className="truncate">{fav.office_name} • {fav.floor_name}</span>
+                                        </div>
+                                        {fav.equipment_tags && (
+                                            <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-1 italic">
+                                                {fav.equipment_tags}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <Link
+                                    href={`/explore/${fav.country_slug}/${fav.office_slug}/${fav.floor_slug}`}
+                                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition-all hover:scale-[1.02]"
+                                >
+                                    <Zap className="w-3.5 h-3.5 fill-slate-950" />
+                                    <span>Repeat Booking for This Desk</span>
+                                </Link>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 dark:text-white">My Reservations</h1>

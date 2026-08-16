@@ -14,3 +14,4 @@
 | `FEAT-0033` | Multi-Modal Commute Guidance per Hub | 7-tab transit guide (Train, Metro, Bus, Car, Car Parks & EV, Cycling, Walking) for each office. | Completed | 2026-08-16 |
 | `FEAT-0034` | 3-Day Live & Predictive Weather Forecast | Meteorological forecast via Open-Meteo with commute weather advisories. | Completed | 2026-08-16 |
 | `FEAT-0035` | Email Notification Engine & Template Studio | Admin email builder for Confirmation, 24h Reminder, 15m Meeting Alert & Test Dispatcher. | Completed | 2026-08-16 |
+| `FEAT-0036` | Favourite Desks & 1-Click Repeat Booking | Save go-to workstations with heart toggles and 1-click repeat reservation flow. | Completed | 2026-08-16 |

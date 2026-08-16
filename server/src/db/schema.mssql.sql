@@ -400,3 +400,14 @@ BEGIN
         CONSTRAINT FK_facility_hotspots_facility FOREIGN KEY (facility_id) REFERENCES facility_areas(id) ON DELETE CASCADE
     );
 END
+-- Favourite Desks Table for Quick Repeat Booking
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[favourite_desks]') AND type in (N'U'))
+BEGIN
+    CREATE TABLE [dbo].[favourite_desks] (
+        [id] NVARCHAR(50) NOT NULL PRIMARY KEY,
+        [user_id] NVARCHAR(50) NOT NULL FOREIGN KEY REFERENCES [dbo].[users]([id]),
+        [desk_id] NVARCHAR(50) NOT NULL FOREIGN KEY REFERENCES [dbo].[desks]([id]),
+        [created_at] DATETIME2 NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT [UQ_user_desk_favourite] UNIQUE ([user_id], [desk_id])
+    );
+END

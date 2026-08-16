@@ -259,3 +259,11 @@ CREATE TABLE IF NOT EXISTS facility_hotspots (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (facility_id) REFERENCES facility_areas(id) ON DELETE CASCADE
 );
+-- Favourite Desks Table for Quick Repeat Booking
+CREATE TABLE IF NOT EXISTS favourite_desks (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    desk_id     TEXT NOT NULL REFERENCES desks(id),
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (user_id, desk_id)
+);

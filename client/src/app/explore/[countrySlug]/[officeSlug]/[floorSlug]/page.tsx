@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { Coffee, Eye, Sparkles, Settings2 } from "lucide-react";
+import { Coffee, Eye, Sparkles, Settings2, Heart, Star } from "lucide-react";
+import { useFavouriteDesks } from "@/hooks/useFavouriteDesks";
 import { api } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
 import { FloorPlan } from "@/components/three/FloorPlan";
@@ -25,6 +26,7 @@ const FloorPage = () => {
     const [selectedFacility, setSelectedFacility] = useState<FacilityArea | null>(null);
 
     const isLocalOrTopAdmin = user?.role === 'super_admin' || user?.role === 'location_admin';
+    const { favourites, isFavourite } = useFavouriteDesks();
 
     // Fetch floor data directly by slug
     const { data: floorPlan, isLoading } = useQuery<any>({
@@ -106,6 +108,29 @@ const FloorPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* My Favourite Desks on this Floor */}
+                {favourites && favourites.filter(f => f.floor_slug === floorSlug || f.floor_id === floorPlan.id).length > 0 && (
+                    <div className="pt-2 border-t border-white/20 dark:border-slate-800 flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-bold uppercase text-amber-500 flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-amber-400" /> Saved Favourites:
+                        </span>
+                        {favourites.filter(f => f.floor_slug === floorSlug || f.floor_id === floorPlan.id).map(fav => (
+                            <button
+                                key={fav.desk_id}
+                                onClick={() => {
+                                    const matchingDesk = floorPlan.desks?.find((d: any) => d.id === fav.desk_id || d.code === fav.desk_code);
+                                    if (matchingDesk) handleDeskSelect(matchingDesk);
+                                }}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-200 border border-amber-400/60 text-xs font-bold transition-all shadow-sm hover:scale-105"
+                            >
+                                <Heart className="w-3 h-3 fill-rose-500 text-rose-500" />
+                                <span>{fav.desk_code}</span>
+                                <span className="text-[9px] text-amber-700 dark:text-amber-300 font-normal">({fav.desk_label || 'Desk'})</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
 
             {/* Legend */}
             <div className="absolute top-6 right-6 z-10 bg-white/10 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl p-4 border border-white/20 dark:border-slate-700/50 space-y-2">

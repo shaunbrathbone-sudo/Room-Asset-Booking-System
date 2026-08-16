@@ -16,6 +16,7 @@ import bugRoutes from './routes/bug.routes';
 import adminRoutes from './routes/admin.routes';
 import kioskRoutes from './routes/kiosk.routes';
 import guideRoutes from './routes/guide.routes';
+import favouriteRoutes from './routes/favourite.routes';
 
 // Services
 import { initGhostBookingScheduler } from './services/ghostBooking.service';
@@ -52,6 +53,7 @@ app.use('/api/bugs', bugRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/kiosk', kioskRoutes);
 app.use('/api', guideRoutes);
+app.use('/api/favourites', favouriteRoutes);
 
 // ── Health Check ────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
