@@ -1,4 +1,4 @@
-﻿# Tasks Log
+# Tasks Log
 
 - **2026-08-16 (Full Day Systemisation & Enterprise Feature Delivery)**:
   - **FEAT-0025: London HQ Clerkenwell Expansion**:
@@ -35,3 +35,10 @@
     - Dual Database Schemas: Synchronized all newly created tables in SQLite (`schema.sql`) and MSSQL (`schema.mssql.sql`).
     - Full Production Build: Passed `next build` (18/18 static & dynamic routes compiled with 0 TypeScript/ESLint errors).
     - Git Sync: All commits pushed and synced cleanly to GitHub repository (`origin/main`).
+
+- **2026-08-18 (Leicester Hub Architectural Drawings & Team Desk Plan Integration)**:
+  - **FEAT-0040: Leicester Hub Architectural Floor Plans & Team Layout**:
+    - Integrated authentic Ground Floor and First Floor drawings into public image storage.
+    - Updated SQLite and MSSQL database seeds with exact room names, team zones, and allocated personnel (Dev Team in Room 1, Projects in Room 2, Support in Room 3, Overflow in Room 4, Meeting in Room 5, Senior Management in Room 6, Boardroom in Room 7).
+    - Created high-definition interactive `ArchitecturalBlueprintModal` viewer with zoom, pan, and layer controls.
+    - Added Architectural Drawing Overlay backdrop in Admin Floor & Desk Layout Canvas for visual desk placement.

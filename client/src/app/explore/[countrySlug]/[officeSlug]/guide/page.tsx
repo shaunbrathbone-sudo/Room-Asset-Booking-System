@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -78,42 +78,62 @@ const OfficeGuidePage = () => {
     const officeCity = office?.city ?? (officeSlug.includes('india') ? 'Noida, Sector 62' : officeSlug.includes('london') ? 'London, Clerkenwell' : 'Leicester City Centre');
     const officeFullAddress = office?.addressLine1 ? `${office.addressLine1}, ${office.city}, ${office.postcode}` : (officeSlug.includes('india') ? 'The Iconic Corenthum Tower C, Sector 62, Noida' : officeSlug.includes('london') ? 'Clerkenwell, London EC1M 6BY' : '17 Friar Lane, Leicester LE1 5RB');
 
+    const officePhoto = office?.photoUrl || office?.imageUrl || (officeSlug === 'leicester-hub' ? '/images/offices/leicester-hub.jpg' : null);
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
             {/* Top Navy Hero Banner */}
             <div className="bg-slate-900 text-white border-b border-slate-800 py-12 px-4 sm:px-6 lg:px-8 shadow-xl">
-                <div className="max-w-screen-xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
+                <div className="max-w-screen-xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                    <div className="flex-1 space-y-4">
                         <Link
                             href={`/explore/${countrySlug}/${officeSlug}`}
-                            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white mb-4 transition-colors"
+                            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
                         >
                             <ArrowLeft className="w-4 h-4" /> Back to 3D Office Stack
                         </Link>
                         <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase text-white">
                             {content.title || guide.title}
                         </h1>
-                        <p className="text-sm sm:text-base text-slate-400 mt-2 font-medium">
+                        <p className="text-sm sm:text-base text-slate-400 font-medium">
                             {content.subtitle || guide.subtitle}
                         </p>
+                        <div className="flex items-center gap-3 pt-2">
+                            {isLocationAdminOrSuper && (
+                                <Link
+                                    href={`/admin/offices/${officeSlug}/guide`}
+                                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-2 border border-slate-700 shadow-md transition-all"
+                                >
+                                    <Edit3 className="w-4 h-4 text-cyan-400" /> Edit Guide (Admin)
+                                </Link>
+                            )}
+                            <Link
+                                href={`/explore/${countrySlug}/${officeSlug}`}
+                                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
+                            >
+                                <Building className="w-4 h-4" /> Book Workstations & Rooms
+                            </Link>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-3 flex-wrap">
-                        {isLocationAdminOrSuper && (
-                            <Link
-                                href={`/admin/offices/${officeSlug}/guide`}
-                                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-2 border border-slate-700 shadow-md transition-all"
-                            >
-                                <Edit3 className="w-4 h-4 text-cyan-400" /> Edit Guide (Admin)
-                            </Link>
-                        )}
-                        <Link
-                            href={`/explore/${countrySlug}/${officeSlug}`}
-                            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
-                        >
-                            <Building className="w-4 h-4" /> Book Workstations & Rooms
-                        </Link>
-                    </div>
+                    {officePhoto && (
+                        <div className="relative w-full lg:w-80 h-48 rounded-2xl overflow-hidden border border-slate-700/80 shadow-2xl group flex-shrink-0">
+                            <img
+                                src={officePhoto}
+                                alt={`${office?.name || 'Office'} Building Front`}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
+                            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-white tracking-wide bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-700">
+                                    🏢 {office?.name || 'Office Facade'}
+                                </span>
+                                <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-800/80 px-2 py-0.5 rounded-full">
+                                    Official Hub
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

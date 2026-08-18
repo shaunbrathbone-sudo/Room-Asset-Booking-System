@@ -1,15 +1,16 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { Coffee, Eye, Sparkles, Settings2, Heart, Star } from "lucide-react";
+import { Coffee, Eye, Sparkles, Settings2, Heart, Star, FileText, Map } from "lucide-react";
 import { useFavouriteDesks } from "@/hooks/useFavouriteDesks";
 import { api } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
 import { FloorPlan } from "@/components/three/FloorPlan";
 import { ScheduleDrawer } from "@/components/booking/ScheduleDrawer";
 import { FacilityHotspotModal, type FacilityArea } from "@/components/spatial/FacilityHotspotModal";
+import { ArchitecturalBlueprintModal } from "@/components/spatial/ArchitecturalBlueprintModal";
 import type { Floor, Desk, MeetingRoom } from "@/types/spatial";
 
 const FloorPage = () => {
@@ -24,6 +25,7 @@ const FloorPage = () => {
     const [resourceType, setResourceType] = useState<"desk" | "meeting_room">("desk");
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedFacility, setSelectedFacility] = useState<FacilityArea | null>(null);
+    const [blueprintOpen, setBlueprintOpen] = useState(false);
 
     const isLocalOrTopAdmin = user?.role === 'super_admin' || user?.role === 'location_admin';
     const { favourites, isFavourite } = useFavouriteDesks();
@@ -83,6 +85,16 @@ const FloorPage = () => {
                     >
                         <Sparkles className="w-3 h-3" /> Guide
                     </button>
+
+                    {(floorPlan.planImageUrl || officeSlug === 'leicester-hub') && (
+                        <button
+                            onClick={() => setBlueprintOpen(true)}
+                            className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 shadow-sm hover:scale-105 transition-transform"
+                            title="View Architectural Drawing & Team Layout"
+                        >
+                            <FileText className="w-3 h-3" /> Architectural Drawing
+                        </button>
+                    )}
                 </div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{floorPlan.name}</h1>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
@@ -165,6 +177,17 @@ const FloorPage = () => {
                 facility={selectedFacility}
                 isOpen={!!selectedFacility}
                 onClose={() => setSelectedFacility(null)}
+            />
+
+            <ArchitecturalBlueprintModal
+                isOpen={blueprintOpen}
+                onClose={() => setBlueprintOpen(false)}
+                floorName={floorPlan.name}
+                officeName={floorPlan.officeName || 'Leicester Hub'}
+                imageUrl={
+                    floorPlan.planImageUrl || 
+                    (floorSlug.includes('ground') ? '/images/floors/leicester-ground-floor.jpg' : '/images/floors/leicester-first-floor.jpg')
+                }
             />
         </div>
     );

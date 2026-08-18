@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useRef, useMemo, useState, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
@@ -365,56 +365,147 @@ const OfficePin = ({ office, onSelectOffice }: OfficePinProps) => {
     );
 };
 
+/* ─── Live User Location Pin ─────────────────────────────── */
+
+interface UserLiveLocationPinProps {
+    userLat: number;
+    userLng: number;
+}
+
+const UserLiveLocationPin = ({ userLat, userLng }: UserLiveLocationPinProps) => {
+    const dotPos = useMemo(() => latLngToVector3(userLat, userLng, 100.4), [userLat, userLng]);
+    const labelPos = useMemo(() => {
+        const p = dotPos.clone();
+        p.x += 6.5;
+        p.y += 5.5;
+        return p;
+    }, [dotPos]);
+
+    const pulseRef = useRef<THREE.Mesh>(null);
+
+    useFrame((state) => {
+        if (pulseRef.current) {
+            const s = 1 + (state.clock.elapsedTime % 1.5) * 1.5;
+            pulseRef.current.scale.set(s, s, s);
+            const mat = pulseRef.current.material as THREE.MeshBasicMaterial;
+            if (mat) mat.opacity = Math.max(0, 0.7 - (state.clock.elapsedTime % 1.5) * 0.45);
+        }
+    });
+
+    return (
+        <group>
+            <LeaderBeam start={dotPos} end={labelPos} color="#38bdf8" />
+            <group position={dotPos}>
+                {/* Core Glowing Dot */}
+                <mesh>
+                    <sphereGeometry args={[1.2, 24, 24]} />
+                    <meshStandardMaterial
+                        color="#38bdf8"
+                        emissive="#0284c7"
+                        emissiveIntensity={3.5}
+                        roughness={0.1}
+                    />
+                </mesh>
+
+                {/* Radar Wave */}
+                <mesh ref={pulseRef} rotation={[-Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[1.2, 2.4, 32]} />
+                    <meshBasicMaterial
+                        color="#38bdf8"
+                        transparent
+                        opacity={0.7}
+                        side={THREE.DoubleSide}
+                    />
+                </mesh>
+            </group>
+
+            {/* User HUD Tag */}
+            <group position={labelPos}>
+                <Html distanceFactor={45} center style={{ pointerEvents: 'none' }}>
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/95 backdrop-blur-md text-cyan-300 border border-cyan-400 shadow-xl shadow-cyan-500/30 whitespace-nowrap">
+                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                        <span className="text-[10px] font-black uppercase tracking-wider text-white">
+                            📍 You Are Here
+                        </span>
+                    </div>
+                </Html>
+            </group>
+        </group>
+    );
+};
+
 /* ─── Device GPS Geolocation Camera Rig ──────────────────── */
 
-const DeviceGeolocationCameraRig = ({ countries }: { countries: Country[] }) => {
+interface DeviceGeolocationCameraRigProps {
+    countries: Country[];
+    userLocation: { latitude: number; longitude: number } | null;
+    onLocationFound: (loc: { latitude: number; longitude: number }) => void;
+}
+
+const DeviceGeolocationCameraRig = ({ countries, userLocation, onLocationFound }: DeviceGeolocationCameraRigProps) => {
     const { camera } = useThree();
     const controlsRef = useRef<any>(null);
+    const targetCamPos = useRef<THREE.Vector3 | null>(null);
 
     useEffect(() => {
-        // Fallback target: first country or UK
         const fallbackTarget = countries[0] || { latitude: 52.6339, longitude: -1.1360 };
         const camDistance = 165;
+
+        const applyTarget = (lat: number, lng: number) => {
+            const userVec = latLngToVector3(lat, lng, 100);
+            targetCamPos.current = userVec.clone().normalize().multiplyScalar(camDistance);
+        };
 
         if (typeof window !== 'undefined' && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    const userLat = position.coords.latitude;
-                    const userLng = position.coords.longitude;
-                    const userVec = latLngToVector3(userLat, userLng, 100);
-                    const camPos = userVec.clone().normalize().multiplyScalar(camDistance);
-
-                    camera.position.set(camPos.x, camPos.y, camPos.z);
-                    camera.lookAt(0, 0, 0);
-                    if (controlsRef.current) {
-                        controlsRef.current.target.set(0, 0, 0);
-                        controlsRef.current.update();
-                    }
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    onLocationFound({ latitude: lat, longitude: lng });
+                    applyTarget(lat, lng);
                 },
                 (_error) => {
-                    // Graceful fallback to country target
-                    const targetVec = latLngToVector3(fallbackTarget.latitude, fallbackTarget.longitude, 100);
-                    const camPos = targetVec.clone().normalize().multiplyScalar(camDistance);
-                    camera.position.set(camPos.x, camPos.y, camPos.z);
-                    camera.lookAt(0, 0, 0);
-                    if (controlsRef.current) {
-                        controlsRef.current.target.set(0, 0, 0);
-                        controlsRef.current.update();
-                    }
+                    applyTarget(fallbackTarget.latitude, fallbackTarget.longitude);
                 },
-                { timeout: 4000, enableHighAccuracy: false }
+                { timeout: 6000, enableHighAccuracy: true }
             );
+
+            const watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    onLocationFound({ latitude: lat, longitude: lng });
+                },
+                undefined,
+                { enableHighAccuracy: true }
+            );
+
+            return () => navigator.geolocation.clearWatch(watchId);
         } else {
-            const targetVec = latLngToVector3(fallbackTarget.latitude, fallbackTarget.longitude, 100);
-            const camPos = targetVec.clone().normalize().multiplyScalar(camDistance);
-            camera.position.set(camPos.x, camPos.y, camPos.z);
+            applyTarget(fallbackTarget.latitude, fallbackTarget.longitude);
+        }
+    }, [countries]);
+
+    useEffect(() => {
+        if (userLocation) {
+            const userVec = latLngToVector3(userLocation.latitude, userLocation.longitude, 100);
+            targetCamPos.current = userVec.clone().normalize().multiplyScalar(165);
+        }
+    }, [userLocation]);
+
+    useFrame(() => {
+        if (targetCamPos.current) {
+            camera.position.lerp(targetCamPos.current, 0.05);
             camera.lookAt(0, 0, 0);
             if (controlsRef.current) {
                 controlsRef.current.target.set(0, 0, 0);
                 controlsRef.current.update();
             }
+            if (camera.position.distanceTo(targetCamPos.current) < 0.2) {
+                targetCamPos.current = null;
+            }
         }
-    }, [countries, camera]);
+    });
 
     return (
         <OrbitControls
@@ -434,9 +525,11 @@ const DeviceGeolocationCameraRig = ({ countries }: { countries: Country[] }) => 
 interface GlobeSceneProps {
     countries: any[];
     onCountrySelect: (country: Country) => void;
+    userLocation?: { latitude: number; longitude: number } | null;
+    onLocationFound?: (loc: { latitude: number; longitude: number }) => void;
 }
 
-const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
+const GlobeContent = ({ countries, onCountrySelect, userLocation, onLocationFound }: GlobeSceneProps) => {
     const router = useRouter();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
@@ -521,12 +614,24 @@ const GlobeContent = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 />
             ))}
 
-            <DeviceGeolocationCameraRig countries={countries} />
+            {/* Live Browser User Location Pin */}
+            {userLocation && (
+                <UserLiveLocationPin
+                    userLat={userLocation.latitude}
+                    userLng={userLocation.longitude}
+                />
+            )}
+
+            <DeviceGeolocationCameraRig
+                countries={countries}
+                userLocation={userLocation || null}
+                onLocationFound={onLocationFound || (() => {})}
+            />
         </>
     );
 };
 
-export const GlobeScene = ({ countries, onCountrySelect }: GlobeSceneProps) => {
+export const GlobeScene = ({ countries, onCountrySelect, userLocation, onLocationFound }: GlobeSceneProps) => {
     return (
         <div className="w-full h-full min-h-[650px] relative">
             <Canvas
@@ -534,7 +639,12 @@ export const GlobeScene = ({ countries, onCountrySelect }: GlobeSceneProps) => {
                 gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping }}
                 style={{ background: 'transparent' }}
             >
-                <GlobeContent countries={countries} onCountrySelect={onCountrySelect} />
+                <GlobeContent
+                    countries={countries}
+                    onCountrySelect={onCountrySelect}
+                    userLocation={userLocation}
+                    onLocationFound={onLocationFound}
+                />
             </Canvas>
         </div>
     );

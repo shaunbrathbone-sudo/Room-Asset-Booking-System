@@ -1,4 +1,4 @@
-﻿## Features Registry (SpaceBook / My Workspaces)
+## Features Registry (SpaceBook / My Workspaces)
 
 | ID | Title | Description | Status | Date |
 |---|---|---|---|---|
@@ -18,3 +18,4 @@
 | `FEAT-0037` | "Book Now" Real-Time Quick Booker | Instant availability scanner for meeting rooms (free now/next hours) & hot desks. | Completed | 2026-08-16 |
 | `FEAT-0038` | Permanent vs. Flexible Desk Allocation Engine | Admin floor editor desk assignment, hybrid in-office day scheduler, and settings management. | Completed | 2026-08-16 |
 | `FEAT-0039` | "My Workspaces" System-Wide Rebrand | Platform-wide rebrand to My Workspaces and direct local office routing. | Completed | 2026-08-16 |
+| `FEAT-0040` | Leicester Hub Architectural Floor Plans & Team Layout | Authentic Ground & 1st floor architectural drawings, Dev/Projects/Support/Senior Management room layouts, and interactive blueprint viewer. | Completed | 2026-08-18 |

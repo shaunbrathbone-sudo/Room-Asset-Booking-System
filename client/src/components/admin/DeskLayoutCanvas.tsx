@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -27,6 +27,8 @@ export interface FloorCanvasData {
     name: string;
     floorNumber: number;
     slug: string;
+    plan_image_url?: string | null;
+    planImageUrl?: string | null;
     desks?: DeskNode[];
 }
 
@@ -40,6 +42,13 @@ const ALL_WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
     const [selectedDesk, setSelectedDesk] = useState<DeskNode | null>(null);
     const [feedback, setFeedback] = useState<string | null>(null);
+    const [showBlueprint, setShowBlueprint] = useState(true);
+    const [blueprintOpacity, setBlueprintOpacity] = useState(40);
+
+    const blueprintUrl = floor?.plan_image_url || floor?.planImageUrl || (
+        floor?.slug === 'ground-floor' ? '/images/floors/leicester-ground-floor.jpg' :
+        floor?.slug === 'first-floor' ? '/images/floors/leicester-first-floor.jpg' : null
+    );
 
     const parseDays = (daysStr?: string | null): string[] => {
         if (!daysStr) return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -95,18 +104,63 @@ export const DeskLayoutCanvas = ({ floor, onSaved }: DeskLayoutCanvasProps) => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* 2D Canvas */}
             <div className="lg:col-span-8 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                        <Compass className="w-5 h-5 text-blue-600 dark:text-cyan-400" /> Interactive Desk Layout Canvas
-                    </h3>
-                    <span className="text-xs text-slate-400 font-semibold">Click workstation node to edit allocation & position</span>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            <Compass className="w-5 h-5 text-blue-600 dark:text-cyan-400" /> Interactive Desk Layout Canvas
+                        </h3>
+                        <span className="text-xs text-slate-400 font-semibold">Click workstation node to edit allocation & position</span>
+                    </div>
+
+                    {blueprintUrl && (
+                        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                            <label className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={showBlueprint}
+                                    onChange={(e) => setShowBlueprint(e.target.checked)}
+                                    className="rounded border-slate-400 text-blue-600 focus:ring-blue-500"
+                                />
+                                Architectural Drawing Overlay
+                            </label>
+                            {showBlueprint && (
+                                <div className="flex items-center gap-1 pl-2 border-l border-slate-300 dark:border-slate-700">
+                                    <span className="text-[10px] text-slate-400 font-mono">{blueprintOpacity}%</span>
+                                    <input
+                                        type="range"
+                                        min="10"
+                                        max="100"
+                                        step="10"
+                                        value={blueprintOpacity}
+                                        onChange={(e) => setBlueprintOpacity(Number(e.target.value))}
+                                        className="w-16 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg cursor-pointer accent-blue-600"
+                                        title="Adjust drawing opacity"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div 
-                    className="relative w-full h-[480px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center p-6 select-none"
+                    className="relative w-full h-[520px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center p-6 select-none"
                     role="region"
                     aria-label="Blueprint workstation positioning canvas"
                 >
+                    {/* Architectural Drawing Backdrop */}
+                    {blueprintUrl && showBlueprint && (
+                        <div 
+                            className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300"
+                            style={{ opacity: blueprintOpacity / 100 }}
+                        >
+                            <img
+                                src={blueprintUrl}
+                                alt="Floor Architectural Blueprint"
+                                className="max-w-full max-h-full object-contain filter invert contrast-125"
+                            />
+                        </div>
+                    )}
+
                     <div 
                         className="absolute inset-0 opacity-20 pointer-events-none" 
                         style={{ backgroundImage: 'radial-gradient(circle, #38bdf8 1px, transparent 1px)', backgroundSize: '24px 24px' }} 

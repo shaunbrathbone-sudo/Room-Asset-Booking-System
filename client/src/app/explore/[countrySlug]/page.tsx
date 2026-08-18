@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useParams } from "next/navigation";
@@ -59,7 +59,7 @@ const CountryPage = () => {
                         {/* Office Image Banner */}
                         <div className="h-56 relative overflow-hidden bg-slate-900">
                             <img
-                                src={office.imageUrl || office.photoUrl || (office.slug === 'leicester-hub' ? 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200' : 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200')}
+                                src={office.imageUrl || office.photoUrl || (office.slug === 'leicester-hub' ? '/images/offices/leicester-hub.jpg' : 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200')}
                                 alt={office.name}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-85"
                             />

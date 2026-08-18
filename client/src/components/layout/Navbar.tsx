@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
@@ -25,6 +25,11 @@ export const Navbar = () => {
     const [supportDropdownOpen, setSupportDropdownOpen] = useState(false);
     const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
     const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const spacesRef = useRef<HTMLDivElement>(null);
     const supportRef = useRef<HTMLDivElement>(null);
@@ -383,10 +388,16 @@ export const Navbar = () => {
                         <button
                             type="button"
                             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
-                            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                            aria-label={mounted ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : 'Toggle color theme'}
                         >
-                            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
+                            {!mounted ? (
+                                <span className="w-4 h-4 block" />
+                            ) : theme === 'dark' ? (
+                                <Sun className="w-4 h-4 text-amber-400" />
+                            ) : (
+                                <Moon className="w-4 h-4 text-blue-600" />
+                            )}
                         </button>
 
                         {isAuthenticated && user && (

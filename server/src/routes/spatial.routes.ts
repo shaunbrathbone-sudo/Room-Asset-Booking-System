@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { getPool } from '../config/database';
 
 const router = Router();
@@ -252,7 +252,7 @@ router.get('/floors/:slug', async (req, res) => {
             .input('slug', slug)
             .query(`
                 SELECT 
-                    f.id, f.floor_number, f.name, f.slug,
+                    f.id, f.floor_number, f.name, f.slug, f.plan_image_url,
                     o.id AS office_id, o.name AS office_name, o.slug AS office_slug,
                     c.name AS country_name, c.slug AS country_slug
                 FROM floors f
@@ -333,6 +333,7 @@ router.get('/floors/:slug', async (req, res) => {
             floorNumber: floor.floor_number,
             name: floor.name,
             slug: floor.slug,
+            planImageUrl: floor.plan_image_url,
             officeId: floor.office_id,
             officeName: floor.office_name,
             officeSlug: floor.office_slug,
