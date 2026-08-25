@@ -42,3 +42,13 @@
     - Updated SQLite and MSSQL database seeds with exact room names, team zones, and allocated personnel (Dev Team in Room 1, Projects in Room 2, Support in Room 3, Overflow in Room 4, Meeting in Room 5, Senior Management in Room 6, Boardroom in Room 7).
     - Created high-definition interactive `ArchitecturalBlueprintModal` viewer with zoom, pan, and layer controls.
     - Added Architectural Drawing Overlay backdrop in Admin Floor & Desk Layout Canvas for visual desk placement.
+
+- **2026-08-25 (Office Slug Alias & Route Resolution Fix)**:
+  - **Flexible Office & Country Slug Resolution**:
+    - Enhanced backend API endpoints (`/api/offices/:slug`, `/api/offices/:slug/floors`, `/api/offices/:slug/guide`, `/api/admin/offices/:slug/floor-editor`, and `/api/countries/:slug/offices`) to support both exact slugs, shorthand aliases (`leicester` -> `leicester-hub`, `london` -> `london-hq`, `noida` -> `cloudfy-india-noida`, `uk`/`gb` -> `united-kingdom`), and UUID lookup.
+  - **Resolved `/api/search` Route Conflict**:
+    - Removed redundant duplicate search endpoint in `spatial.routes.ts` ensuring Universal Search always routes to `search.routes.ts` and returns standard `SearchResult[]` items with proper navigation targets.
+  - **Office-Scoped Floor Queries**:
+    - Added office parameter handling in `/api/floors/:slug` and updated Next.js floor page component to ensure office-specific floor plans are loaded when different offices share common floor slugs (e.g. `ground-floor`).
+  - **Full Production Build Verification**:
+    - Passed Next.js production build (`next build` with 18/18 routes compiled successfully).

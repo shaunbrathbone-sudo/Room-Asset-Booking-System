@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../config/database';
 import { authenticate, requireRole } from '../middleware/auth';
@@ -219,9 +219,28 @@ router.post('/offices/wizard', async (req, res) => {
 router.get('/offices/:slug/floor-editor', async (req, res) => {
     try {
         const { slug } = req.params;
+        const normalizedSlug = (slug || '').toLowerCase().trim();
+        const baseSlug = normalizedSlug.replace(/-office$|-hub$|-hq$|-branch$/i, '');
         const pool = await getPool();
 
-        const officeRes = await pool.request().input('slug', slug).query('SELECT * FROM offices WHERE slug = @slug');
+        const officeRes = await pool.request()
+            .input('slug', normalizedSlug)
+            .input('baseSlug', baseSlug)
+            .input('prefix', `${baseSlug}%`)
+            .input('pattern', `%${baseSlug}%`)
+            .query(`
+                SELECT * 
+                FROM offices o 
+                WHERE (o.id = @slug OR o.slug = @slug OR o.slug = @baseSlug OR o.slug LIKE @prefix OR o.slug LIKE @pattern)
+                ORDER BY 
+                    CASE 
+                        WHEN o.id = @slug THEN 1 
+                        WHEN o.slug = @slug THEN 2 
+                        WHEN o.slug = @baseSlug THEN 3 
+                        WHEN o.slug LIKE @prefix THEN 4 
+                        ELSE 5 
+                    END
+            `);
         if (officeRes.recordset.length === 0) return res.status(404).json({ error: 'Office not found' });
         const office = officeRes.recordset[0];
 
