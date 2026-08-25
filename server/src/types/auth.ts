@@ -1,10 +1,11 @@
-﻿export interface UserPayload {
+export interface UserPayload {
     id: string;
     email: string;
     firstName: string;
     lastName: string;
     role: 'employee' | 'approver' | 'location_admin' | 'super_admin';
     tenantId: string | null;
+    avatarUrl?: string | null;
 }
 
 export interface RegisterBody {

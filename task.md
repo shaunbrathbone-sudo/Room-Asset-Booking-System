@@ -42,3 +42,14 @@
     - Updated SQLite and MSSQL database seeds with exact room names, team zones, and allocated personnel (Dev Team in Room 1, Projects in Room 2, Support in Room 3, Overflow in Room 4, Meeting in Room 5, Senior Management in Room 6, Boardroom in Room 7).
     - Created high-definition interactive `ArchitecturalBlueprintModal` viewer with zoom, pan, and layer controls.
     - Added Architectural Drawing Overlay backdrop in Admin Floor & Desk Layout Canvas for visual desk placement.
+
+- **2026-08-22 (3D Floor Plan Rendering Engine Upgrade & Bug Resolution)**:
+  - **BUG-FIX: Resolved "why is a black mess?" (Ticket `359adbb7-6b23-4899-8e20-1bac2dbc5a85`)**:
+    - Upgraded `FloorPlan.tsx` with dual Light/Dark mode studio lighting, architectural floor slab, and high-contrast ambient fill.
+    - Projected architectural blueprint drawing texture directly onto 3D ground plane with grid overlay.
+    - Corrected desk `d-1f-sp04` (Claudia) coordinates in `spacebook.db` back into Room 3 (`x: 20, y: 0`).
+    - Added `suppressHydrationWarning` on `<body>` element to prevent browser extension attribute warnings.
+  - **FEAT-0041: 3D Isometric Architectural Cutaway Floor Plans & Multi-View Studio**:
+    - Generated photorealistic 3D isometric cutaways for Ground Floor (Dev Team, Boardroom, Reception, Kitchen) and First Floor (Projects, Support, Management, Meeting, Overflow).
+    - Upgraded `ArchitecturalBlueprintModal` with instant segmented switcher between 3D Isometric Model and 2D CAD Blueprint.
+    - Added high-resolution download and interactive team zone overlays.

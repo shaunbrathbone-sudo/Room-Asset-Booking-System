@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { Coffee, Eye, Sparkles, Settings2, Heart, Star, FileText, Map } from "lucide-react";
+import { Coffee, Eye, Sparkles, Settings2, Heart, Star, FileText, Map, Box } from "lucide-react";
 import { useFavouriteDesks } from "@/hooks/useFavouriteDesks";
 import { api } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
@@ -90,9 +90,10 @@ const FloorPage = () => {
                         <button
                             onClick={() => setBlueprintOpen(true)}
                             className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 shadow-sm hover:scale-105 transition-transform"
-                            title="View Architectural Drawing & Team Layout"
+                            title="View 3D Architectural Model & 2D Blueprint"
                         >
-                            <FileText className="w-3 h-3" /> Architectural Drawing
+                            <Box className="w-3 h-3 text-cyan-300" />
+                            <span>3D Model & Blueprint</span>
                         </button>
                     )}
                 </div>
@@ -187,6 +188,11 @@ const FloorPage = () => {
                 imageUrl={
                     floorPlan.planImageUrl || 
                     (floorSlug.includes('ground') ? '/images/floors/leicester-ground-floor.jpg' : '/images/floors/leicester-first-floor.jpg')
+                }
+                render3dUrl={
+                    floorSlug.includes('ground') 
+                        ? '/images/floors/leicester-ground-floor-3d.jpg' 
+                        : '/images/floors/leicester-first-floor-3d.jpg'
                 }
             />
         </div>

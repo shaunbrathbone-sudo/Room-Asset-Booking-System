@@ -19,3 +19,4 @@
 | `FEAT-0038` | Permanent vs. Flexible Desk Allocation Engine | Admin floor editor desk assignment, hybrid in-office day scheduler, and settings management. | Completed | 2026-08-16 |
 | `FEAT-0039` | "My Workspaces" System-Wide Rebrand | Platform-wide rebrand to My Workspaces and direct local office routing. | Completed | 2026-08-16 |
 | `FEAT-0040` | Leicester Hub Architectural Floor Plans & Team Layout | Authentic Ground & 1st floor architectural drawings, Dev/Projects/Support/Senior Management room layouts, and interactive blueprint viewer. | Completed | 2026-08-18 |
+| `FEAT-0041` | 3D Isometric Architectural Cutaway Floor Plans & Multi-View Studio | Photorealistic 3D isometric cutaways for Ground & 1st floors, 3D Model / 2D Blueprint switcher, and studio lighting floor projection. | Completed | 2026-08-22 |

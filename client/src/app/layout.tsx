@@ -1,4 +1,4 @@
-﻿import type { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/providers/QueryProvider';
@@ -21,7 +21,10 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`${inter.className} bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white antialiased`}>
+            <body 
+                suppressHydrationWarning 
+                className={`${inter.className} bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white antialiased`}
+            >
                 <QueryProvider>
                     <AuthProvider>
                         <ThemeProvider>

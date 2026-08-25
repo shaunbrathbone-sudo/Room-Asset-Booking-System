@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
@@ -52,12 +52,21 @@ export const AdminGuard = ({
                 </div>
 
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    {!isAuthenticated ? (
+                        <button
+                            type="button"
+                            onClick={() => router.push('/login')}
+                            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all hover:scale-105"
+                        >
+                            Sign In to Access Admin
+                        </button>
+                    ) : null}
                     <button
                         type="button"
                         onClick={() => router.push('/explore')}
-                        className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all hover:scale-105"
+                        className={`w-full sm:w-auto px-5 py-3 rounded-2xl ${!isAuthenticated ? 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 font-bold text-slate-700 dark:text-slate-300' : 'bg-blue-600 hover:bg-blue-500 text-white font-black shadow-lg shadow-blue-500/20'} text-xs flex items-center justify-center gap-2 transition-all hover:scale-105`}
                     >
-                        <Globe className="w-4 h-4" /> Return to Workplace Explorer
+                        <Globe className="w-4 h-4" /> Return to Explorer
                     </button>
                     <button
                         type="button"
