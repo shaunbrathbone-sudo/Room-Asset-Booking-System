@@ -1,4 +1,4 @@
-﻿# Room Asset Booking System — Agent Rules
+# Room Asset Booking System — Agent Rules
 
 This is the central rules file for the **Room-Asset-Booking-System** workspace.
 All decisions, conventions, and behavioural rules captured during conversations should be appended here so they persist across sessions.
@@ -104,7 +104,7 @@ It contains:
 18. **Branching & Merging Strategy** — Follow these Git operations conventions:
     - **Feature branches**: When starting a new feature (indicated by the user using the keyword `feature`), create a branch using the format `feature/feature-name`.
     - **Hotfix branches**: When starting a fix (indicated by the user using the keyword `fix`), create a branch using the format `hotfix/fix-name`.
-    - **Branch Cleanup**: When the user requests to push changes to remote, first merge the current branch locally into `main`, delete the local branch, and then push `main` changes to the remote repository.
+    - **Branch Cleanup & Dual Remote Push**: When the user requests to push changes to remote, first merge the current branch locally into `main`, delete the local branch, and then push `main` changes to **both GitHub and Azure DevOps** remotes.
 
 19. **Mandatory Dual Light/Dark Mode Standard** — all UI components, pages, badges, tables, toolbars, and popups MUST support both Light Mode and Dark Mode seamlessly:
     - **Theme-Aware Background Pairs**: Never use single dark background utilities (`bg-slate-100` or `bg-navy-900`) without explicit light/dark pairs (e.g. `bg-white dark:bg-navy-900`).
@@ -118,6 +118,7 @@ It contains:
 _Append new decisions below as they are made. Format: `YYYY-MM-DD — Decision`._
 
 - 2026-08-16 — Workspace initialized for Room-Asset-Booking-System with all core standards, rules 1-19, and full skills suite.
+- 2026-08-25 — Added mandatory dual remote push policy: all pushes must target both GitHub and Azure DevOps remotes.
 
 ---
 
