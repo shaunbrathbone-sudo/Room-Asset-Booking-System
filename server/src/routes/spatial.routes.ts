@@ -103,10 +103,11 @@ router.get('/countries', async (_req, res) => {
 router.get('/countries/:slug/offices', async (req, res) => {
     try {
         const { slug } = req.params;
+        const normalizedSlug = (slug || '').toLowerCase().trim();
         const pool = await getPool();
 
         const result = await pool.request()
-            .input('slug', slug)
+            .input('slug', normalizedSlug)
             .query(`
                 SELECT 
                     o.id, o.name, o.slug, o.address_line1, o.city, o.postcode, o.floor_count,
@@ -135,7 +136,7 @@ router.get('/countries/:slug/offices', async (req, res) => {
                     c.name AS country_name, c.slug AS country_slug
                 FROM offices o
                 JOIN countries c ON c.id = o.country_id
-                WHERE c.slug = @slug
+                WHERE (c.slug = @slug OR LOWER(c.iso_code) = @slug OR (c.slug = 'united-kingdom' AND @slug IN ('uk', 'gb', 'britain')))
                 ORDER BY o.name ASC
             `);
 
@@ -169,10 +170,15 @@ router.get('/countries/:slug/offices', async (req, res) => {
 router.get('/offices/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
+        const normalizedSlug = (slug || '').toLowerCase().trim();
+        const baseSlug = normalizedSlug.replace(/-office$|-hub$|-hq$|-branch$/i, '');
         const pool = await getPool();
 
         const officeResult = await pool.request()
-            .input('slug', slug)
+            .input('slug', normalizedSlug)
+            .input('baseSlug', baseSlug)
+            .input('prefix', `${baseSlug}%`)
+            .input('pattern', `%${baseSlug}%`)
             .query(`
                 SELECT 
                     o.id, o.name, o.slug, o.address_line1, o.city, o.postcode, o.floor_count,
@@ -180,7 +186,15 @@ router.get('/offices/:slug', async (req, res) => {
                     c.name AS country_name, c.slug AS country_slug
                 FROM offices o
                 JOIN countries c ON c.id = o.country_id
-                WHERE o.slug = @slug
+                WHERE (o.id = @slug OR o.slug = @slug OR o.slug = @baseSlug OR o.slug LIKE @prefix OR o.slug LIKE @pattern)
+                ORDER BY 
+                    CASE 
+                        WHEN o.id = @slug THEN 1 
+                        WHEN o.slug = @slug THEN 2 
+                        WHEN o.slug = @baseSlug THEN 3 
+                        WHEN o.slug LIKE @prefix THEN 4 
+                        ELSE 5 
+                    END
             `);
 
         if (officeResult.recordset.length === 0) {
@@ -246,20 +260,37 @@ router.get('/offices/:slug', async (req, res) => {
 router.get('/floors/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
+        const officeSlugParam = (req.query.officeSlug || req.query.office) as string | undefined;
         const pool = await getPool();
 
-        const floorResult = await pool.request()
-            .input('slug', slug)
-            .query(`
-                SELECT 
-                    f.id, f.floor_number, f.name, f.slug, f.plan_image_url,
-                    o.id AS office_id, o.name AS office_name, o.slug AS office_slug,
-                    c.name AS country_name, c.slug AS country_slug
-                FROM floors f
-                JOIN offices o ON o.id = f.office_id
-                JOIN countries c ON c.id = o.country_id
-                WHERE f.slug = @slug
-            `);
+        const request = pool.request().input('slug', slug);
+        let officeWhere = '';
+
+        if (officeSlugParam) {
+            const normOffice = officeSlugParam.toLowerCase().trim();
+            const baseOffice = normOffice.replace(/-office$|-hub$|-hq$|-branch$/i, '');
+            request.input('officeSlug', normOffice)
+                .input('baseOffice', baseOffice)
+                .input('officePrefix', `${baseOffice}%`)
+                .input('officePattern', `%${baseOffice}%`);
+            officeWhere = ` AND (o.id = @officeSlug OR o.slug = @officeSlug OR o.slug = @baseOffice OR o.slug LIKE @officePrefix OR o.slug LIKE @officePattern)`;
+        }
+
+        const floorResult = await request.query(`
+            SELECT 
+                f.id, f.floor_number, f.name, f.slug, f.plan_image_url,
+                o.id AS office_id, o.name AS office_name, o.slug AS office_slug,
+                c.name AS country_name, c.slug AS country_slug
+            FROM floors f
+            JOIN offices o ON o.id = f.office_id
+            JOIN countries c ON c.id = o.country_id
+            WHERE f.slug = @slug ${officeWhere}
+            ORDER BY 
+                CASE 
+                    WHEN office_id IS NOT NULL THEN 1 
+                    ELSE 2 
+                END
+        `);
 
         if (floorResult.recordset.length === 0) {
             return res.status(404).json({ error: 'Floor not found' });
@@ -373,142 +404,32 @@ router.get('/floors/:slug', async (req, res) => {
     }
 });
 
-// ── 5. DIRECT UNIVERSAL SEARCH ──────────────────────────────────
-router.get('/search', async (req, res) => {
-    try {
-        const q = String(req.query.q || '').trim().toLowerCase();
-        if (!q || q.length < 2) {
-            return res.json({ desks: [], meetingRooms: [], offices: [], colleagues: [] });
-        }
-
-        const pool = await getPool();
-        const searchPattern = `%${q}%`;
-
-        // Search Desks
-        const desksResult = await pool.request()
-            .input('q', searchPattern)
-            .query(`
-                SELECT 
-                    d.id, d.code AS desk_code, d.label, d.status,
-                    f.name AS floor_name, f.slug AS floor_slug,
-                    o.name AS office_name, o.slug AS office_slug,
-                    c.slug AS country_slug
-                FROM desks d
-                JOIN zones z ON z.id = d.zone_id
-                JOIN floors f ON f.id = z.floor_id
-                JOIN offices o ON o.id = f.office_id
-                JOIN countries c ON c.id = o.country_id
-                WHERE LOWER(d.code) LIKE @q OR LOWER(COALESCE(d.label, '')) LIKE @q
-                LIMIT 5
-            `);
-
-        // Search Meeting Rooms
-        const roomsResult = await pool.request()
-            .input('q', searchPattern)
-            .query(`
-                SELECT 
-                    mr.id, mr.name, mr.capacity, mr.status,
-                    f.name AS floor_name, f.slug AS floor_slug,
-                    o.name AS office_name, o.slug AS office_slug,
-                    c.slug AS country_slug
-                FROM meeting_rooms mr
-                JOIN zones z ON z.id = mr.zone_id
-                JOIN floors f ON f.id = z.floor_id
-                JOIN offices o ON o.id = f.office_id
-                JOIN countries c ON c.id = o.country_id
-                WHERE LOWER(mr.name) LIKE @q
-                LIMIT 5
-            `);
-
-        // Search Offices
-        const officesResult = await pool.request()
-            .input('q', searchPattern)
-            .query(`
-                SELECT 
-                    o.id, o.name, o.slug, o.address_line1, o.city, o.postcode,
-                    c.name AS country_name, c.slug AS country_slug
-                FROM offices o
-                JOIN countries c ON c.id = o.country_id
-                WHERE LOWER(o.name) LIKE @q OR LOWER(o.address_line1) LIKE @q OR LOWER(o.city) LIKE @q
-                LIMIT 5
-            `);
-
-        // Search Colleagues
-        const usersResult = await pool.request()
-            .input('q', searchPattern)
-            .query(`
-                SELECT 
-                    u.id, u.first_name, u.last_name, u.email, u.role, u.avatar_url,
-                    b.resource_id, b.resource_type, b.start_time, b.end_time,
-                    d.code AS desk_code, f.name AS floor_name, f.slug AS floor_slug,
-                    o.name AS office_name, o.slug AS office_slug, c.slug AS country_slug
-                FROM users u
-                LEFT JOIN bookings b ON b.user_id = u.id 
-                    AND b.status = 'confirmed'
-                    AND datetime('now') BETWEEN datetime(b.start_time) AND datetime(b.end_time)
-                LEFT JOIN desks d ON d.id = b.resource_id AND b.resource_type = 'desk'
-                LEFT JOIN zones z ON z.id = d.zone_id
-                LEFT JOIN floors f ON f.id = z.floor_id
-                LEFT JOIN offices o ON o.id = f.office_id
-                LEFT JOIN countries c ON c.id = o.country_id
-                WHERE LOWER(u.first_name) LIKE @q OR LOWER(u.last_name) LIKE @q OR LOWER(u.email) LIKE @q
-                LIMIT 5
-            `);
-
-        res.json({
-            desks: desksResult.recordset.map((d: any) => ({
-                id: d.id,
-                deskCode: d.desk_code,
-                status: d.status,
-                floorName: d.floor_name,
-                floorSlug: d.floor_slug,
-                officeName: d.office_name,
-                officeSlug: d.office_slug,
-                countrySlug: d.country_slug,
-                url: `/explore/${d.country_slug}/${d.office_slug}/${d.floor_slug}?deskId=${d.id}`,
-            })),
-            meetingRooms: roomsResult.recordset.map((r: any) => ({
-                id: r.id,
-                name: r.name,
-                capacity: r.capacity,
-                status: r.status,
-                floorName: r.floor_name,
-                floorSlug: r.floor_slug,
-                officeName: r.office_name,
-                officeSlug: r.office_slug,
-                countrySlug: r.country_slug,
-                url: `/explore/${r.country_slug}/${r.office_slug}/${r.floor_slug}?roomId=${r.id}`,
-            })),
-            offices: officesResult.recordset.map((o: any) => ({
-                id: o.id,
-                name: o.name,
-                address: `${o.address_line1}, ${o.city} ${o.postcode}`,
-                url: `/explore/${o.country_slug}/${o.slug}`,
-            })),
-            colleagues: usersResult.recordset.map((u: any) => ({
-                id: u.id,
-                fullName: `${u.first_name} ${u.last_name}`,
-                email: u.email,
-                role: u.role,
-                avatarUrl: u.avatar_url,
-                currentDesk: u.desk_code ? `${u.desk_code} (${u.floor_name}, ${u.office_name})` : 'Not Checked In',
-                url: u.floor_slug ? `/explore/${u.country_slug}/${u.office_slug}/${u.floor_slug}?deskId=${u.resource_id}` : '/explore',
-            })),
-        });
-    } catch (err) {
-        console.error('Direct search error:', err);
-        res.status(500).json({ error: 'Internal server error during search' });
-    }
-});
-
-
 // GET /api/offices/:slug/floors
 router.get('/offices/:slug/floors', async (req, res) => {
     try {
+        const { slug } = req.params;
+        const normalizedSlug = (slug || '').toLowerCase().trim();
+        const baseSlug = normalizedSlug.replace(/-office$|-hub$|-hq$|-branch$/i, '');
         const pool = await getPool();
+
         const officeRes = await pool.request()
-            .input('slug', req.params.slug)
-            .query('SELECT id FROM offices WHERE slug = @slug LIMIT 1');
+            .input('slug', normalizedSlug)
+            .input('baseSlug', baseSlug)
+            .input('prefix', `${baseSlug}%`)
+            .input('pattern', `%${baseSlug}%`)
+            .query(`
+                SELECT id 
+                FROM offices o 
+                WHERE (o.id = @slug OR o.slug = @slug OR o.slug = @baseSlug OR o.slug LIKE @prefix OR o.slug LIKE @pattern)
+                ORDER BY 
+                    CASE 
+                        WHEN o.id = @slug THEN 1 
+                        WHEN o.slug = @slug THEN 2 
+                        WHEN o.slug = @baseSlug THEN 3 
+                        WHEN o.slug LIKE @prefix THEN 4 
+                        ELSE 5 
+                    END
+            `);
 
         if (!officeRes.recordset?.length) {
             res.status(404).json({ error: 'Office not found' });

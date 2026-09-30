@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { getPool } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
@@ -8,16 +8,29 @@ const router = Router();
 // GET /api/offices/:slug/guide
 router.get('/offices/:slug/guide', async (req, res) => {
     try {
-        const { slug } = req.params;
+        const slug = req.params.slug as string;
+        const normalizedSlug = String(slug || '').toLowerCase().trim();
+        const baseSlug = normalizedSlug.replace(/-office$|-hub$|-hq$|-branch$/i, '');
         const pool = await getPool();
 
         const result = await pool.request()
-            .input('slug', slug)
+            .input('slug', normalizedSlug)
+            .input('baseSlug', baseSlug)
+            .input('prefix', `${baseSlug}%`)
+            .input('pattern', `%${baseSlug}%`)
             .query(`
                 SELECT og.*, o.name AS office_name, o.slug AS office_slug
                 FROM office_guides og
                 JOIN offices o ON o.id = og.office_id
-                WHERE o.slug = @slug
+                WHERE (o.id = @slug OR o.slug = @slug OR o.slug = @baseSlug OR o.slug LIKE @prefix OR o.slug LIKE @pattern)
+                ORDER BY 
+                    CASE 
+                        WHEN o.id = @slug THEN 1 
+                        WHEN o.slug = @slug THEN 2 
+                        WHEN o.slug = @baseSlug THEN 3 
+                        WHEN o.slug LIKE @prefix THEN 4 
+                        ELSE 5 
+                    END
             `);
 
         if (result.recordset.length === 0) {
@@ -43,13 +56,30 @@ router.get('/offices/:slug/guide', async (req, res) => {
 // PUT /api/offices/:slug/guide (Admin update)
 router.put('/offices/:slug/guide', authenticate, requireRole('location_admin', 'super_admin'), async (req, res) => {
     try {
-        const { slug } = req.params;
+        const slug = req.params.slug as string;
+        const normalizedSlug = String(slug || '').toLowerCase().trim();
+        const baseSlug = normalizedSlug.replace(/-office$|-hub$|-hq$|-branch$/i, '');
         const { title, subtitle, content } = req.body;
         const pool = await getPool();
 
         const officeResult = await pool.request()
-            .input('slug', slug)
-            .query('SELECT id FROM offices WHERE slug = @slug');
+            .input('slug', normalizedSlug)
+            .input('baseSlug', baseSlug)
+            .input('prefix', `${baseSlug}%`)
+            .input('pattern', `%${baseSlug}%`)
+            .query(`
+                SELECT id 
+                FROM offices o 
+                WHERE (o.id = @slug OR o.slug = @slug OR o.slug = @baseSlug OR o.slug LIKE @prefix OR o.slug LIKE @pattern)
+                ORDER BY 
+                    CASE 
+                        WHEN o.id = @slug THEN 1 
+                        WHEN o.slug = @slug THEN 2 
+                        WHEN o.slug = @baseSlug THEN 3 
+                        WHEN o.slug LIKE @prefix THEN 4 
+                        ELSE 5 
+                    END
+            `);
 
         if (officeResult.recordset.length === 0) {
             return res.status(404).json({ error: 'Office not found' });

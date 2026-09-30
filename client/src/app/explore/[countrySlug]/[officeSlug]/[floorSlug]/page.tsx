@@ -30,11 +30,13 @@ const FloorPage = () => {
     const isLocalOrTopAdmin = user?.role === 'super_admin' || user?.role === 'location_admin';
     const { favourites, isFavourite } = useFavouriteDesks();
 
-    // Fetch floor data directly by slug
+    // Fetch floor data directly by slug (scoped to office)
     const { data: floorPlan, isLoading } = useQuery<any>({
-        queryKey: ["floorPlan", floorSlug],
+        queryKey: ["floorPlan", officeSlug, floorSlug],
         queryFn: async () => {
-            const { data } = await api.get(`/floors/${floorSlug}`);
+            const { data } = await api.get(`/floors/${floorSlug}`, {
+                params: { officeSlug },
+            });
             return data;
         },
     });
