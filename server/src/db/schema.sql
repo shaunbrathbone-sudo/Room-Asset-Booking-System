@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- Room-Asset-Booking-System — SQLite Schema DDL
 -- ============================================================
 
@@ -156,6 +156,16 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS domains (
+    id                  TEXT PRIMARY KEY,
+    domain_name         TEXT NOT NULL UNIQUE,
+    verified            INTEGER NOT NULL DEFAULT 0,
+    verification_token  TEXT,
+    default_role        TEXT NOT NULL DEFAULT 'employee',
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS bookings (
     id                  TEXT PRIMARY KEY,
     user_id             TEXT NOT NULL REFERENCES users(id),
@@ -164,6 +174,8 @@ CREATE TABLE IF NOT EXISTS bookings (
     start_time          TEXT NOT NULL,
     end_time            TEXT NOT NULL,
     status              TEXT NOT NULL DEFAULT 'confirmed',
+    show_as             TEXT NOT NULL DEFAULT 'free',
+    calendar_sync_status TEXT NOT NULL DEFAULT 'synced',
     checked_in          INTEGER NOT NULL DEFAULT 0,
     checkin_time        TEXT,
     cancel_token        TEXT,

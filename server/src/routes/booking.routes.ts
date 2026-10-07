@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../config/database';
 import { authenticate } from '../middleware/auth';
@@ -71,7 +71,7 @@ router.get('/', async (req, res) => {
 // ── 2. CREATE SINGLE BOOKING ─────────────────────────────────────
 router.post('/', async (req, res) => {
     try {
-        const { resourceType, resourceId, startTime, endTime, notes } = req.body;
+        const { resourceType, resourceId, startTime, endTime, notes, showAs } = req.body;
         const userId = req.user!.id;
 
         if (!resourceType || !resourceId || !startTime || !endTime) {
@@ -109,6 +109,7 @@ router.post('/', async (req, res) => {
 
         const bookingId = uuidv4();
         const checkInToken = uuidv4();
+        const bookingShowAs = showAs || (resourceType === 'meeting_room' ? 'busy' : 'free');
 
         await pool.request()
             .input('id', bookingId)
@@ -118,17 +119,19 @@ router.post('/', async (req, res) => {
             .input('startTime', startTime)
             .input('endTime', endTime)
             .input('status', initialStatus)
+            .input('showAs', bookingShowAs)
             .input('checkInToken', checkInToken)
             .input('notes', notes || null)
             .query(`
-                INSERT INTO bookings (id, user_id, resource_type, resource_id, start_time, end_time, status, check_in_token, notes)
-                VALUES (@id, @userId, @resourceType, @resourceId, @startTime, @endTime, @status, @checkInToken, @notes)
+                INSERT INTO bookings (id, user_id, resource_type, resource_id, start_time, end_time, status, show_as, calendar_sync_status, check_in_token, notes)
+                VALUES (@id, @userId, @resourceType, @resourceId, @startTime, @endTime, @status, @showAs, 'synced', @checkInToken, @notes)
             `);
 
         res.status(201).json({
             message: initialStatus === 'pending_approval' ? 'Reservation submitted for manager approval.' : 'Reservation confirmed successfully.',
             bookingId,
             status: initialStatus,
+            showAs: bookingShowAs,
             checkInToken,
         });
     } catch (err) {

@@ -4,14 +4,13 @@ import './globals.css';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
-import { Navbar } from '@/components/layout/Navbar';
-import { FeedbackFAB } from '@/components/feedback/FeedbackFAB';
+import { EnterpriseShell } from '@/components/layout/EnterpriseShell';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-    title: 'Cloudfy Workspaces — 3D Global Space & Asset Booking',
-    description: 'Enterprise 3D spatial booking platform for desks, boardrooms, fleet vehicles, and shared equipment across global offices.',
+    title: 'GlobalConnect — Enterprise Workspace SAMS v1.2',
+    description: 'Enterprise smart workspace, desk hoteling, meeting room and asset management system.',
 };
 
 export default function RootLayout({
@@ -28,9 +27,9 @@ export default function RootLayout({
                 <QueryProvider>
                     <AuthProvider>
                         <ThemeProvider>
-                            <Navbar />
-                            <main>{children}</main>
-                            <FeedbackFAB />
+                            <EnterpriseShell>
+                                {children}
+                            </EnterpriseShell>
                         </ThemeProvider>
                     </AuthProvider>
                 </QueryProvider>

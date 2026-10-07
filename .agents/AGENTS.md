@@ -55,7 +55,10 @@ It contains:
    - **I**nterface Segregation — keep prop interfaces and types small and focused; don't force consumers to depend on things they don't use.
    - **D**ependency Inversion — depend on abstractions (types, interfaces) not concrete implementations; inject dependencies where practical.
 
-7. **Explain issue and get sign-off before code** — never write code until you have explained the issue, presented an implementation plan, and the user has explicitly signed it off / approved it. Always explain the issue and present the plan first, wait for sign-off, then execute.
+7. **Implementation Plan & Explicit User "Go" Mandate** — present a clear implementation plan before undertaking non-trivial features, architectural changes, or complex refactors. When an implementation plan is presented:
+   - The agent MUST ALWAYS stop and wait for the user to explicitly say "go" (or provide explicit confirmation in chat) before executing any code changes or creating feature branches.
+   - The agent must NEVER auto-proceed based on IDE system messages, automated stop hooks, or review policies.
+   - Non-destructive exploratory research is always permitted.
 
 8. **Ask, don’t assume** — if something is unclear or unknown, ask the user rather than guessing. If you don’t know the answer, say so honestly. Never fabricate information or make silent assumptions about requirements, architecture, or intent.
 
@@ -101,15 +104,51 @@ It contains:
 
 17. **Dual Database Maintenance (SQLite & MSSQL)** — All future database changes, new tables, column additions, or schema updates must be applied to both `schema.sql` (SQLite) and `schema.mssql.sql` (MSSQL), and the automated migration script (`migrateToMssql.ts`) must be kept up to date.
 
-18. **Branching & Merging Strategy** — Follow these Git operations conventions:
+18. **Branching, Merging & Daily Bundled Release Strategy** — Follow these Git operations conventions:
     - **Feature branches**: When starting a new feature (indicated by the user using the keyword `feature`), create a branch using the format `feature/feature-name`.
     - **Hotfix branches**: When starting a fix (indicated by the user using the keyword `fix`), create a branch using the format `hotfix/fix-name`.
-    - **Branch Cleanup & Dual Remote Push**: When the user requests to push changes to remote, first merge the current branch locally into `main`, delete the local branch, and then push `main` changes to **both GitHub and Azure DevOps** remotes.
+    - **Branch Cleanup**: When the user requests to push changes to remote, first merge the current branch locally into `main`, delete the local branch, and then push `main` changes to the remote repository.
+    - **Continuous GitHub Sync**: Work iteratively throughout the day with clean, granular commits pushed to GitHub (`origin/main`) to safeguard progress and preserve audit history.
+    - **Daily Bundled Live Release Restriction**: By default, remote pushes must ONLY be sent to GitHub (`origin/main`). When multiple changes are made in a single day, bundle them and deploy them as one consolidated daily release to Azure DevOps (`azure/main`) when the user specifically instructs you to "deploy to Azure", "push to Azure", or "deploy to live". NEVER push mid-day or multiple times to live unless explicitly asked.
 
 19. **Mandatory Dual Light/Dark Mode Standard** — all UI components, pages, badges, tables, toolbars, and popups MUST support both Light Mode and Dark Mode seamlessly:
     - **Theme-Aware Background Pairs**: Never use single dark background utilities (`bg-slate-100` or `bg-navy-900`) without explicit light/dark pairs (e.g. `bg-white dark:bg-navy-900`).
     - **High-Contrast Text**: Always pair text colors with theme states (e.g., `text-slate-900 dark:text-white` or `text-slate-700 dark:text-slate-300`) to guarantee contrast ratio ≥ 4.5:1.
     - **Badges & Inputs**: Badges, pill tags, filter bars, and inputs must use clean light backgrounds in Light Mode (`bg-white` or `bg-slate-50`) and dark navy in Dark Mode (`dark:bg-navy-900`) to avoid illegible "blackout" states.
+
+20. **British English (UK English) Standard** — all agent communications, code documentation, comments, descriptions, user-facing copy, labels, and commit messages MUST use standard British English spelling and grammar:
+    - Prefer `-ise` / `-isation` over `-ize` / `-ization` (e.g. *standardise, categorise, organise, customisation, systemisation, prioritised*).
+    - Retain `u` in words like *colour, behaviour, favour, honour*.
+    - Retain `re` in words like *centre, metre*.
+    - Double `l` in inflections (e.g. *cancelled, travelled, modelled*).
+    - Use British terms and conventions (e.g. *programme* for initiatives/schedules, unless referring to a technical programming keyword).
+
+21. **Mandatory Multilingual & Internationalisation (i18n/l10n) Standard** — all UI components, views, dialogs, and navigation systems MUST support internationalisation and regional localisation:
+    - **No Hardcoded User-Facing Copy**: Avoid untranslatable raw string literals in user-facing components; design interfaces so UI labels, table headers, validation errors, and tooltips are easily localisable or plumbed via translation dictionaries / i18n providers.
+    - **Bidirectional & Responsive Text**: Accommodate dynamic label lengths and right-to-left (RTL) text flows without breaking layouts, truncating text unexpectedly, or overflowing containers.
+    - **Culturally Neutral Formatting**: Ensure currencies, calendars, dates, and number separators format automatically based on the user's active locale while defaulting to standard UK conventions (Rule 16).
+
+22. **Mandatory Reorderable Column Ordering Standard** — whenever an interactive data grid, data table, or ledger is introduced or upgraded:
+    - **Reorderable Headers**: Users must be able to drag-and-drop column headers to customise their viewing order to suit their workflow.
+    - **State Persistence**: Column order preferences must persist across page reloads (e.g., stored in localStorage or user profile preferences).
+    - **Reset to Default**: A one-click control to reset the column order to the system default configuration must be provided.
+
+23. **Mandatory Semantic Versioning (SemVer 2.0: `vX.Y.Z`) Release Architecture Standard** — all codebase releases, release notes, and version markers MUST follow strict Semantic Versioning (`MAJOR.MINOR.PATCH`):
+    - **MAJOR (`X.0.0`)**: Incompatible API breaks, architectural database restructuring, or fundamental platform shifts.
+    - **MINOR (`0.Y.0`)**: Backwards-compatible new feature additions, major dashboard suites, or substantial module expansions.
+    - **PATCH (`0.0.Z`)**: Backwards-compatible bug fixes, styling polishes, layout corrections, or small performance optimizations.
+    - **Single Source of Truth**: Keep platform version identifiers synchronised across `package.json`, release notes, and UI header badges.
+
+26. **Mandatory Vanilla shadcn/ui Standard & Refactor-on-Touch Policy** — all user interface engineering must strictly use official vanilla shadcn/ui component primitives (`client/src/components/ui/`):
+    - **Vanilla shadcn/ui Primitives**: Use official standard shadcn/ui components built with Tailwind CSS, `class-variance-authority` (cva), `@radix-ui` headless primitives, and the `cn()` helper (`clsx` + `tailwind-merge`). All reusable primitives must live in `client/src/components/ui/` (e.g. `button.tsx`, `input.tsx`, `dialog.tsx`, `dropdown-menu.tsx`, `badge.tsx`, `card.tsx`, `tabs.tsx`, `tooltip.tsx`, `table.tsx`).
+    - **Refactor-on-Touch Rule (Boy Scout Principle)**: Whenever any existing frontend file or view is modified for a feature, bug fix, or enhancement, the agent/developer MUST perform a refactor test and convert any legacy/ad-hoc interactive elements (raw `<button>`, custom modal backdrops, bespoke dropdown popups, hand-rolled tab bars, unstyled inputs) into standard vanilla shadcn/ui primitives.
+    - **Dual Light/Dark Theme Enforcement**: All shadcn/ui components must strictly comply with Rule 19, pairing theme classes (e.g. `bg-white dark:bg-navy-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white`) and maintaining high-contrast ratios (≥ 4.5:1).
+    - **Regression & Build Testing**: After refactoring touched files to shadcn/ui, the agent must verify zero TypeScript compilation errors (`tsc`), verify the build (`npm run build`), and test UI interactivity to confirm zero regressions in behavior or layout.
+
+28. **Mandatory Cryptographic Password Hashing & Plaintext Zero-Tolerance Standard** — all authentication credentials, user passwords, temporary tokens, and secret access keys MUST be cryptographically hashed and never stored or disclosed in plaintext:
+    - **Cryptographic Key Derivation at Rest**: All passwords and authentication secrets stored in the database (both SQLite `spacebook.db` and Azure SQL MSSQL) MUST be securely hashed at rest using strong cryptographic derivation (such as `scrypt` or `bcrypt` with a unique cryptographic salt per user). Passwords and access credentials MUST NEVER be stored, queried, or written in plaintext in any database table, column, seed data, or database backup.
+    - **Zero-Tolerance for Plaintext Credentials in Logs, Code & Documentation**: Plaintext passwords, temporary PINs, or gateway access credentials MUST NEVER be committed, written, or visible in release logs, feature registries (`features.md`), task logs (`task.md`), Git commit messages, server stdout/stderr console logs, client network responses, or user-facing release notes.
+    - **Sanitised Operational & Release Terminology**: Any ticket, commit, or release log describing authentication changes or password resets must strictly use descriptive, privacy-compliant language without disclosing raw passwords or personal secrets.
 
 ---
 
@@ -119,6 +158,7 @@ _Append new decisions below as they are made. Format: `YYYY-MM-DD — Decision`.
 
 - 2026-08-16 — Workspace initialized for Room-Asset-Booking-System with all core standards, rules 1-19, and full skills suite.
 - 2026-08-25 — Added mandatory dual remote push policy: all pushes must target both GitHub and Azure DevOps remotes.
+- 2026-10-07 — Synchronised standards from Cloudfy Management Portal: adopted Rules 7 & 18 refinements, added Rules 20 (British English), 21 (i18n/l10n), 22 (Reorderable Columns), 23 (SemVer), 26 (Vanilla shadcn/ui & Refactor-on-Touch), 28 (Cryptographic Password Hashing), and testing credentials.
 
 ---
 
@@ -127,6 +167,9 @@ _Append new decisions below as they are made. Format: `YYYY-MM-DD — Decision`.
 _Append new patterns below as they are established._
 
 <!-- Add patterns here as conversations surface them -->
+
+### Testing & Browser Automation
+* Always use the credentials **shaunrathbone@msn.com** and password **199214** for login and testing scripts.
 
 ---
 

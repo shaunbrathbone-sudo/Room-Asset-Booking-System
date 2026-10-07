@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- Room-Asset-Booking-System — MSSQL Schema DDL
 -- Version: 1.0 (Phase 1)
 -- ============================================================
@@ -190,22 +190,38 @@ CREATE TABLE user_preferences (
 );
 
 -- ──────────────────────────────────────────────────────────────
+-- DOMAINS — Corporate verified domains for JIT auto-onboarding
+-- ──────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'domains')
+CREATE TABLE domains (
+    id                  UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    domain_name         NVARCHAR(254)    NOT NULL UNIQUE,
+    verified            BIT              NOT NULL DEFAULT 0,
+    verification_token  NVARCHAR(200)    NULL,
+    default_role        NVARCHAR(30)     NOT NULL DEFAULT 'employee',
+    created_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+    updated_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE()
+);
+
+-- ──────────────────────────────────────────────────────────────
 -- BOOKINGS — Resource reservations (schema scaffold for Phase 2)
 -- ──────────────────────────────────────────────────────────────
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bookings')
 CREATE TABLE bookings (
-    id              UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    user_id         UNIQUEIDENTIFIER NOT NULL REFERENCES users(id),
-    resource_type   NVARCHAR(30)     NOT NULL CHECK (resource_type IN ('desk', 'meeting_room', 'asset')),
-    resource_id     UNIQUEIDENTIFIER NOT NULL,
-    start_time      DATETIME2        NOT NULL,
-    end_time        DATETIME2        NOT NULL,
-    status          NVARCHAR(30)     NOT NULL DEFAULT 'confirmed'
-                    CHECK (status IN ('confirmed', 'pending_approval', 'cancelled', 'checked_in', 'no_show')),
-    checked_in      BIT              NOT NULL DEFAULT 0,
-    approval_note   NVARCHAR(1000)   NULL,
-    created_at      DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
-    updated_at      DATETIME2        NOT NULL DEFAULT GETUTCDATE()
+    id                  UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    user_id             UNIQUEIDENTIFIER NOT NULL REFERENCES users(id),
+    resource_type       NVARCHAR(30)     NOT NULL CHECK (resource_type IN ('desk', 'meeting_room', 'asset')),
+    resource_id         UNIQUEIDENTIFIER NOT NULL,
+    start_time          DATETIME2        NOT NULL,
+    end_time            DATETIME2        NOT NULL,
+    status              NVARCHAR(30)     NOT NULL DEFAULT 'confirmed'
+                        CHECK (status IN ('confirmed', 'pending_approval', 'cancelled', 'checked_in', 'no_show')),
+    show_as             NVARCHAR(20)     NOT NULL DEFAULT 'free',
+    calendar_sync_status NVARCHAR(30)    NOT NULL DEFAULT 'synced',
+    checked_in          BIT              NOT NULL DEFAULT 0,
+    approval_note       NVARCHAR(1000)   NULL,
+    created_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
+    updated_at          DATETIME2        NOT NULL DEFAULT GETUTCDATE()
 );
 
 -- ──────────────────────────────────────────────────────────────
